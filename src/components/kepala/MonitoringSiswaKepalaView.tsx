@@ -36,8 +36,12 @@ export const MonitoringSiswaKepalaView: React.FC = () => {
             <CheckCircle2 className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-2xl font-bold text-emerald-600">356</div>
-            <div className="text-xs text-slate-500 font-medium">Santri Hadir (96.7%)</div>
+            <div className="text-2xl font-bold text-emerald-600">
+              {Math.max(0, siswaList.length - siswaTidakMasukList.length)}
+            </div>
+            <div className="text-xs text-slate-500 font-medium">
+              Santri Hadir ({siswaList.length > 0 ? `${((Math.max(0, siswaList.length - siswaTidakMasukList.length) / siswaList.length) * 100).toFixed(1)}%` : '100%'})
+            </div>
           </div>
         </div>
 

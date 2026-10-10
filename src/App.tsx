@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/common/Header';
 import { Sidebar } from './components/common/Sidebar';
+import { PanduanOperasionalView } from './components/common/PanduanOperasionalView';
+import { KartuKendaliView } from './components/common/KartuKendaliView';
 
 // Auth & Public
 import { LoginView } from './components/auth/LoginView';
@@ -33,6 +35,7 @@ import { KategoriMasterView } from './components/admin/KategoriMasterView';
 import { UserManagementView } from './components/admin/UserManagementView';
 import { LaporanAdminView } from './components/admin/LaporanAdminView';
 import { PengaturanSistemView } from './components/admin/PengaturanSistemView';
+import { PergantianTahunAjaranView } from './components/admin/PergantianTahunAjaranView';
 
 // Kepala Madrasah Views
 import { DashboardKepala } from './components/kepala/DashboardKepala';
@@ -116,6 +119,11 @@ const AppContent: React.FC = () => {
 
   // Router for main authenticated interface
   const renderActiveView = () => {
+    // Universal view for all roles
+    if (activeView === 'panduan-operasional' || activeView === 'panduan-sop') {
+      return <PanduanOperasionalView />;
+    }
+
     // 1. GURU PIKET
     if (currentUser.role === 'Guru Piket') {
       switch (activeView) {
@@ -133,6 +141,8 @@ const AppContent: React.FC = () => {
           return <SiswaTerlambatView />;
         case 'izin-keluar-kelas':
           return <IzinKeluarKelasView />;
+        case 'kartu-kendali':
+          return <KartuKendaliView />;
         case 'siswa-tugas-khusus':
           return <SiswaTugasKhususView />;
         case 'pelanggaran-siswa':
@@ -158,6 +168,8 @@ const AppContent: React.FC = () => {
           return <DataGuruView />;
         case 'data-siswa':
           return <DataSiswaView />;
+        case 'kartu-kendali':
+          return <KartuKendaliView />;
         case 'data-kelas':
           return <DataKelasView />;
         case 'data-mapel':
@@ -183,6 +195,9 @@ const AppContent: React.FC = () => {
           return <LaporanAdminView />;
         case 'pengaturan-sistem':
           return <PengaturanSistemView />;
+        case 'pergantian-tahun':
+        case 'kenaikan-kelas':
+          return <PergantianTahunAjaranView />;
         default:
           return <DashboardAdmin />;
       }
@@ -197,6 +212,8 @@ const AppContent: React.FC = () => {
           return <MonitoringGuruKepalaView />;
         case 'monitoring-siswa':
           return <MonitoringSiswaKepalaView />;
+        case 'kartu-kendali':
+          return <KartuKendaliView />;
         case 'monitoring-kbm-kepala':
           return <MonitoringKBMKepalaView />;
         case 'laporan-guru-piket-kepala':
@@ -209,6 +226,9 @@ const AppContent: React.FC = () => {
           return <RekapStatistikKepalaView />;
         case 'pengumuman-kepala':
           return <PengumumanKepalaView />;
+        case 'pergantian-tahun':
+        case 'kenaikan-kelas':
+          return <PergantianTahunAjaranView />;
         default:
           return <DashboardKepala />;
       }

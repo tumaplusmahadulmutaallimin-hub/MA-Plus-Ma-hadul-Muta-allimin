@@ -24,15 +24,30 @@ import {
   Send,
   CheckCircle2,
   FileCheck,
+  RotateCcw,
   Megaphone,
   BarChart3,
   Building2,
   Shield,
-  Sparkles
+  ShieldCheck,
+  Sparkles,
+  HelpCircle,
+  X
 } from 'lucide-react';
+import { MadrasahLogo } from './MadrasahLogo';
 
 export const Sidebar: React.FC = () => {
-  const { currentUser, activeView, setActiveView, setIsLoggedIn, switchRole } = useApp();
+  const {
+    currentUser,
+    activeView,
+    setActiveView,
+    setIsLoggedIn,
+    switchRole,
+    isMobileSidebarOpen,
+    setIsMobileSidebarOpen,
+    tahunAjaranAktif,
+    semesterAktif
+  } = useApp();
 
   // Menu configurations for each role
   const guruPiketSections = [
@@ -51,16 +66,18 @@ export const Sidebar: React.FC = () => {
         { id: 'siswa-tidak-masuk', label: 'Siswa Tidak Masuk', icon: UserX },
         { id: 'siswa-terlambat', label: 'Siswa Terlambat', icon: Clock },
         { id: 'izin-keluar-kelas', label: 'Izin Keluar Kelas', icon: DoorOpen },
+        { id: 'kartu-kendali', label: 'Kartu Kendali Santri', icon: ShieldCheck, badge: 'Resmi' },
         { id: 'siswa-tugas-khusus', label: 'Siswa Tugas Khusus', icon: Award },
         { id: 'pelanggaran-siswa', label: 'Pelanggaran Siswa', icon: AlertOctagon },
         { id: 'lapor-kendala', label: 'Lapor Kendala', icon: AlertTriangle }
       ]
     },
     {
-      title: 'PELAPORAN & REKAP',
+      title: 'PELAPORAN & PANDUAN',
       items: [
         { id: 'rekap-hari-ini', label: 'Rekap Presensi Harian', icon: FileSpreadsheet },
-        { id: 'kirim-laporan-kepala', label: 'Kirim Laporan ke Kepala', icon: Send }
+        { id: 'kirim-laporan-kepala', label: 'Kirim Laporan ke Kepala', icon: Send },
+        { id: 'panduan-operasional', label: 'Panduan Operasional & SOP', icon: HelpCircle, badge: 'SOP' }
       ]
     }
   ];
@@ -77,6 +94,7 @@ export const Sidebar: React.FC = () => {
       items: [
         { id: 'data-guru', label: 'Data Guru & Pegawai', icon: Users },
         { id: 'data-siswa', label: 'Data Siswa & MBG', icon: GraduationCap },
+        { id: 'pergantian-tahun', label: 'Tahun Ajaran & Kenaikan', icon: RotateCcw, badge: 'Baru' },
         { id: 'data-kelas', label: 'Data Rombel & Kelas', icon: School },
         { id: 'data-mapel', label: 'Mata Pelajaran', icon: BookOpen },
         { id: 'data-ruang', label: 'Ruang & Fasilitas', icon: MapPin },
@@ -97,10 +115,12 @@ export const Sidebar: React.FC = () => {
       title: 'PENGGUNA & LAPORAN',
       items: [
         { id: 'user-role', label: 'User & Manajemen Akun', icon: UserCheck },
+        { id: 'kartu-kendali', label: 'Kartu Kendali Santri', icon: ShieldCheck, badge: 'Resmi' },
         { id: 'rekap-guru-piket', label: 'Rekap Kinerja Piket', icon: FileSpreadsheet },
         { id: 'rekap-siswa', label: 'Rekap Presensi Siswa', icon: GraduationCap },
         { id: 'laporan-kepala', label: 'Arsip Laporan Kepala', icon: FileCheck },
-        { id: 'pengaturan-sistem', label: 'Pengaturan Sistem', icon: Settings }
+        { id: 'pengaturan-sistem', label: 'Pengaturan Sistem', icon: Settings },
+        { id: 'panduan-operasional', label: 'Panduan Operasional & SOP', icon: HelpCircle, badge: 'SOP' }
       ]
     }
   ];
@@ -117,12 +137,15 @@ export const Sidebar: React.FC = () => {
       items: [
         { id: 'monitoring-guru', label: 'Monitoring Guru', icon: Users },
         { id: 'monitoring-siswa', label: 'Monitoring Siswa', icon: GraduationCap },
+        { id: 'pergantian-tahun', label: 'Tahun Ajaran & Kenaikan', icon: RotateCcw, badge: 'SK' },
+        { id: 'kartu-kendali', label: 'Kartu Kendali Santri', icon: ShieldCheck, badge: 'Resmi' },
         { id: 'monitoring-kbm-kepala', label: 'Monitoring KBM Aktif', icon: BookOpen },
         { id: 'laporan-guru-piket-kepala', label: 'Verifikasi Laporan Piket', icon: FileCheck, badge: 'Perlu TTD' },
         { id: 'kendala-tindak-lanjut-kepala', label: 'Disposisi Kendala', icon: AlertTriangle },
         { id: 'rekap-absensi-kepala', label: 'Rekapitulasi Presensi', icon: FileSpreadsheet },
         { id: 'rekap-statistik-kepala', label: 'Statistik & Analisis', icon: BarChart3 },
-        { id: 'pengumuman-kepala', label: 'Pusat Pengumuman', icon: Megaphone }
+        { id: 'pengumuman-kepala', label: 'Pusat Pengumuman', icon: Megaphone },
+        { id: 'panduan-operasional', label: 'Panduan Operasional & SOP', icon: HelpCircle, badge: 'SOP' }
       ]
     }
   ];
@@ -134,41 +157,67 @@ export const Sidebar: React.FC = () => {
       ? kepalaSections
       : guruPiketSections;
 
-  return (
-    <aside className="w-64 bg-gradient-to-b from-[#062117] via-[#08281D] to-[#04160F] text-slate-300 flex flex-col shrink-0 min-h-screen border-r border-emerald-950/80 shadow-xl select-none">
-      {/* Brand Header */}
-      <div className="p-4 border-b border-emerald-900/60 bg-black/15">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500/20 to-amber-500/20 border border-emerald-500/30 p-1 flex items-center justify-center shadow-md shadow-emerald-950/40 shrink-0">
-            <img
-              src="/src/assets/images/madrasah_logo_1791093665342.jpg"
-              alt="MA PLUS Logo"
-              className="w-full h-full object-contain rounded-md"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
-              }}
-            />
-            <Building2 className="w-6 h-6 text-amber-400 hidden only:block" />
+  // Close drawer on Escape key press in any mode
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isMobileSidebarOpen) {
+        setIsMobileSidebarOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileSidebarOpen, setIsMobileSidebarOpen]);
+
+  const renderSidebarContent = () => (
+    <div className="flex flex-col h-full select-none">
+      {/* Brand Header with Official Logo & Taglines */}
+      <div className="p-3.5 border-b border-emerald-900/60 bg-black/25">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="w-12 h-12 rounded-xl bg-white border border-emerald-500/50 p-0.5 flex items-center justify-center shadow-md shadow-emerald-950/70 shrink-0">
+              <MadrasahLogo size="lg" />
+            </div>
+
+            <div className="overflow-hidden">
+              <div className="flex items-center gap-1.5">
+                <span className="font-extrabold text-white text-[15px] tracking-wide font-sans">MA PLUS</span>
+                <span className="text-[8px] font-black bg-amber-500 text-slate-950 px-1.5 py-0.2 rounded tracking-wider uppercase">
+                  RESMI
+                </span>
+              </div>
+              <p className="text-[10px] text-amber-300 font-extrabold uppercase tracking-tight truncate">
+                THREE IN ONE
+              </p>
+              <p className="text-[8.5px] text-emerald-200/90 font-medium truncate">
+                (Religius, Sains and Skill)
+              </p>
+            </div>
           </div>
 
-          <div className="overflow-hidden">
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-white text-base tracking-wide font-sans">MA PLUS</span>
-              <span className="text-[9px] font-bold bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/30 tracking-wider">
-                UNGGUL
-              </span>
-            </div>
-            <p className="text-[11px] text-emerald-200/80 font-medium truncate">Ma'hadul Muta'allimin</p>
-          </div>
+          {/* Close Button on Drawer (Bisa ditutup kapan saja di mode apa saja) */}
+          <button
+            type="button"
+            onClick={() => setIsMobileSidebarOpen(false)}
+            className="p-1.5 rounded-lg text-emerald-300 hover:text-white hover:bg-emerald-900/60 transition-colors cursor-pointer shrink-0 border border-emerald-800/40"
+            aria-label="Tutup Menu Navigasi"
+            title="Tutup Menu Navigasi (Esc)"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* Academic year indicator */}
-        <div className="mt-3 px-2.5 py-1 rounded-lg bg-emerald-950/70 border border-emerald-800/40 flex items-center justify-between text-[10px]">
-          <span className="text-emerald-300/90 font-medium flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            TA 2026/2027
-          </span>
-          <span className="text-amber-300/80 font-semibold">Semester Gasal</span>
+        {/* Tagline Box: Madrasah Berbasis Pondok Pesantren */}
+        <div className="mt-2.5 p-1.5 rounded-lg bg-emerald-950/90 border border-emerald-800/60 text-center">
+          <p className="text-[8.5px] font-extrabold tracking-wider text-amber-200 uppercase">
+            MADRASAH BERBASIS PONDOK PESANTREN
+          </p>
+          <div className="mt-1 flex items-center justify-between text-[9px] text-emerald-300/80 border-t border-emerald-900/60 pt-1">
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              TA {tahunAjaranAktif}
+            </span>
+            <span className="text-amber-300/90 font-semibold">Semester {semesterAktif}</span>
+          </div>
         </div>
       </div>
 
@@ -189,8 +238,12 @@ export const Sidebar: React.FC = () => {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveView(item.id)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all group text-left ${
+                    onClick={() => {
+                      setActiveView(item.id);
+                      // Otomatis menutup menu navigasi setelah memilih menu di mode apa saja
+                      setIsMobileSidebarOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all group text-left cursor-pointer ${
                       isActive
                         ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md shadow-emerald-950/50 border-l-3 border-amber-400 pl-2.5'
                         : 'text-slate-300 hover:bg-emerald-900/40 hover:text-white'
@@ -244,7 +297,7 @@ export const Sidebar: React.FC = () => {
 
           <button
             onClick={() => setIsLoggedIn(false)}
-            className="p-1.5 text-slate-400 hover:text-rose-300 hover:bg-rose-950/40 rounded-lg transition-colors shrink-0"
+            className="p-1.5 text-slate-400 hover:text-rose-300 hover:bg-rose-950/40 rounded-lg transition-colors shrink-0 cursor-pointer"
             title="Keluar dari Sistem"
           >
             <LogOut className="w-4 h-4" />
@@ -261,6 +314,27 @@ export const Sidebar: React.FC = () => {
           </p>
         </div>
       </div>
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Menu Navigasi Drawer: Tertutup saat awal dibuka di mode apa saja, terbuka jika tombol garis tiga dipojok atas diklik */}
+      {isMobileSidebarOpen && (
+        <div className="fixed inset-0 z-50">
+          {/* Backdrop overlay (klik luar untuk menutup) */}
+          <div
+            className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs transition-opacity animate-in fade-in duration-200 cursor-pointer"
+            onClick={() => setIsMobileSidebarOpen(false)}
+            aria-hidden="true"
+          />
+
+          {/* Off-canvas slide-out drawer di semua mode (HP, tablet, desktop) */}
+          <aside className="fixed inset-y-0 left-0 w-72 sm:w-80 max-w-[85vw] bg-gradient-to-b from-[#062117] via-[#08281D] to-[#04160F] text-slate-300 flex flex-col shadow-2xl border-r border-emerald-950/80 z-50 animate-in slide-in-from-left duration-250 ease-out select-none">
+            {renderSidebarContent()}
+          </aside>
+        </div>
+      )}
+    </>
   );
 };

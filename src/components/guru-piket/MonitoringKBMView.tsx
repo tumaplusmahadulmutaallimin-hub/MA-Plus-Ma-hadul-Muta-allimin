@@ -19,7 +19,13 @@ import {
   Check,
   X,
   Eye,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Sparkles,
+  Laptop,
+  Wrench,
+  Shirt,
+  CookingPot,
+  Share2
 } from 'lucide-react';
 import { exportToXLSX } from '../../utils/excelHelper';
 import { ImageUploader, ImagePreset } from '../common/ImageUploader';
@@ -54,10 +60,25 @@ export const MonitoringKBMView: React.FC = () => {
     confirmTeacherKBMArrival,
     jadwalKBMList,
     gurus,
+    siswas,
+    siswaTidakMasukList,
+    catatSiswaTidakMasukJam1,
+    cutOffPulangAwalList,
+    localWisdomList,
+    updateLocalWisdomStatus,
+    generateWaTextLocalWisdom,
     setActiveView,
     alertSuccess,
+    alertError,
     alertInfo
   } = useApp();
+
+  // Tab mode: 'kbm-reguler' | 'piket-local-wisdom'
+  const [activeKBMTab, setActiveKBMTab] = useState<'kbm-reguler' | 'piket-local-wisdom'>('kbm-reguler');
+  const [selectedLWDay, setSelectedLWDay] = useState<'Rabu' | 'Kamis' | 'Sabtu'>('Rabu');
+  const [activeLWModal, setActiveLWModal] = useState<any>(null);
+  const [lwConfirmStatus, setLwConfirmStatus] = useState<'Hadir Lengkap' | 'Ada Siswa Absen' | 'Selesai'>('Hadir Lengkap');
+  const [lwCatatan, setLwCatatan] = useState<string>('');
 
   const [activePeriod, setActivePeriod] = useState<number>(1);
   const [selectedKelas, setSelectedKelas] = useState('XA');
@@ -68,6 +89,12 @@ export const MonitoringKBMView: React.FC = () => {
   const [kondisiSiswa, setKondisiSiswa] = useState<'Tertib' | 'Kurang tertib' | 'Gaduh' | 'Banyak siswa tidak fokus'>('Tertib');
   const [catatan, setCatatan] = useState('');
   const [isSavedNotice, setIsSavedNotice] = useState(false);
+
+  // Modal Khusus Jam Ke-1: Input Absensi Manual Santri Tidak Hadir
+  const [showJam1Modal, setShowJam1Modal] = useState(false);
+  const [jam1Nama, setJam1Nama] = useState('');
+  const [jam1Status, setJam1Status] = useState<'Sakit' | 'Izin' | 'Alpa'>('Sakit');
+  const [jam1Keterangan, setJam1Keterangan] = useState('');
 
   // Modal 1: Dialog Pengiriman Peringatan Keterlambatan ke Guru
   const [showWarningModal, setShowWarningModal] = useState(false);
@@ -363,7 +390,244 @@ export const MonitoringKBMView: React.FC = () => {
           </a>
         </div>
       </div>
-      {/* Period Selection Bar */}
+      {/* Primary Sub-Tabs: KBM Reguler vs Piket Local Wisdom */}
+      <div className="flex items-center gap-2 p-1.5 bg-slate-200/80 rounded-2xl w-full sm:w-fit border border-slate-300/80 shadow-2xs">
+        <button
+          type="button"
+          onClick={() => setActiveKBMTab('kbm-reguler')}
+          className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+            activeKBMTab === 'kbm-reguler'
+              ? 'bg-white text-slate-900 shadow-md border border-slate-200'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+          }`}
+        >
+          <BookOpen className="w-4 h-4 text-blue-600" />
+          <span>Monitoring KBM Reguler (Kelas)</span>
+          <span className="text-[10px] px-1.5 py-0.2 bg-blue-100 text-blue-800 rounded-md font-mono">
+            {monitoringKBMList.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveKBMTab('piket-local-wisdom')}
+          className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+            activeKBMTab === 'piket-local-wisdom'
+              ? 'bg-gradient-to-r from-teal-700 to-emerald-700 text-white shadow-md'
+              : 'text-slate-600 hover:text-teal-900 hover:bg-white/50'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-amber-300" />
+          <span>Piket Local Wisdom (Lab &amp; Bengkel)</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-md font-bold bg-amber-400 text-slate-950">
+            {localWisdomList.filter(l => l.statusKonfirmasi === 'Menunggu Konfirmasi').length} Menunggu
+          </span>
+        </button>
+      </div>
+
+      {/* JIKA TAB PIKET LOCAL WISDOM AKTIF */}
+      {activeKBMTab === 'piket-local-wisdom' && (
+        <div className="bg-white p-5 sm:p-7 rounded-3xl border border-teal-200/80 shadow-xs space-y-6 animate-in fade-in">
+          {/* Header Modul Piket Local Wisdom */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div className="flex items-start gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-600 to-emerald-700 text-white flex items-center justify-center shadow-md shadow-teal-900/20 shrink-0">
+                <Sparkles className="w-6 h-6 text-amber-300" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+                    Modul Piket Local Wisdom (Delegasi Lab / Bengkel)
+                  </h3>
+                  <span className="text-[10px] font-extrabold bg-teal-100 text-teal-900 px-2 py-0.5 rounded-full border border-teal-300">
+                    Delegasi Kehadiran Praktikum
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-1 max-w-3xl leading-relaxed">
+                  Guru piket mendelegasikan verifikasi kehadiran siswa di ruang kejuruan (Lab TIK Komputer, Bengkel TKRO, Ruang Jahit BLK Busana, Dapur Tata Boga) kepada guru/instruktur pengampu. Status otomatis <strong>'Menunggu Konfirmasi'</strong> hingga instruktur melakukan konfirmasi mandiri via WhatsApp atau portal.
+                </p>
+              </div>
+            </div>
+
+            {/* Pilihan Hari / Angkatan */}
+            <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl text-xs font-bold shrink-0 border border-slate-200">
+              {(['Rabu', 'Kamis', 'Sabtu'] as const).map((day) => (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => setSelectedLWDay(day)}
+                  className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
+                    selectedLWDay === day
+                      ? 'bg-teal-700 text-white shadow-xs font-extrabold'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                  }`}
+                >
+                  {day} {day === 'Rabu' ? '(Kelas 11)' : day === 'Kamis' ? '(Kelas 10)' : '(Kelas 12)'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* SOP Banner */}
+          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-teal-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-teal-600 animate-ping"></span>
+              <p className="text-teal-950 font-medium">
+                <strong>Alur Operasional Piket:</strong> Klik icon WhatsApp atau salin link konfirmasi mandiri untuk dikirimkan kepada guru pengampu. Guru membuka link di HP dan memverifikasi presensi siswa.
+              </p>
+            </div>
+            <span className="text-[10px] font-bold px-2 py-1 bg-white text-teal-800 rounded-lg border border-teal-200 shadow-2xs shrink-0">
+              SOP Madrasah Tiga in One
+            </span>
+          </div>
+
+          {/* Cards Sesi Praktikum Local Wisdom */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {localWisdomList.filter(l => l.hari === selectedLWDay).map((session) => {
+              const isConfirmed = session.statusKonfirmasi === 'Hadir Lengkap' || session.statusKonfirmasi === 'Selesai';
+              const isIssue = session.statusKonfirmasi === 'Ada Siswa Absen';
+              const isWaiting = session.statusKonfirmasi === 'Menunggu Konfirmasi';
+
+              // Generated Portal Link for direct teacher self confirmation
+              const currentOrigin = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : 'http://localhost:3000';
+              const teacherSelfLink = `${currentOrigin}?portal=konfirmasi&id=${session.id}&guru=${encodeURIComponent(session.instruktur)}&kelas=${encodeURIComponent(session.tingkatKelas)}&mapel=${encodeURIComponent(session.jurusan + ' (' + session.lokasi + ')')}`;
+
+              return (
+                <div
+                  key={session.id}
+                  className={`p-4 rounded-2xl border transition-all flex flex-col justify-between space-y-3.5 ${
+                    isConfirmed
+                      ? 'bg-emerald-50/50 border-emerald-300 shadow-xs'
+                      : isIssue
+                      ? 'bg-rose-50/50 border-rose-300 shadow-xs'
+                      : 'bg-white border-amber-300 ring-1 ring-amber-400/20 shadow-xs'
+                  }`}
+                >
+                  <div>
+                    {/* Header Card */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-teal-700 shadow-2xs">
+                          {session.jurusan.includes('IT') ? (
+                            <Laptop className="w-4.5 h-4.5 text-blue-600" />
+                          ) : session.jurusan.includes('TKRO') ? (
+                            <Wrench className="w-4.5 h-4.5 text-amber-600" />
+                          ) : session.jurusan.includes('Busana') ? (
+                            <Shirt className="w-4.5 h-4.5 text-rose-600" />
+                          ) : (
+                            <CookingPot className="w-4.5 h-4.5 text-emerald-600" />
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-extrabold text-slate-900 leading-tight">
+                            {session.jurusan}
+                          </h4>
+                          <p className="text-[10px] text-teal-800 font-bold mt-0.5">
+                            {session.lokasi}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`text-[9.5px] font-extrabold px-2 py-0.5 rounded-full border tracking-wide whitespace-nowrap ${
+                          isConfirmed
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                            : isIssue
+                            ? 'bg-rose-100 text-rose-800 border-rose-300'
+                            : 'bg-amber-100 text-amber-900 border-amber-300 animate-pulse'
+                        }`}
+                      >
+                        {session.statusKonfirmasi}
+                      </span>
+                    </div>
+
+                    {/* Detail Info */}
+                    <div className="mt-3.5 space-y-1.5 text-xs bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80">
+                      <div className="flex justify-between items-center text-slate-500">
+                        <span>Guru Pengampu:</span>
+                        <span className="font-bold text-slate-800 truncate max-w-[120px]">{session.instruktur}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-500">
+                        <span>Jumlah Siswa:</span>
+                        <span className="font-mono font-bold text-slate-800">{session.jumlahSiswa} Santri</span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-500">
+                        <span>Tingkat Rombel:</span>
+                        <span className="font-semibold text-slate-700">{session.tingkatKelas}</span>
+                      </div>
+                      {session.waktuKonfirmasi && (
+                        <div className="flex justify-between items-center text-[11px] text-emerald-700 font-semibold pt-1 border-t border-slate-200/60">
+                          <span>Waktu Konfirmasi:</span>
+                          <span className="font-mono">{session.waktuKonfirmasi}</span>
+                        </div>
+                      )}
+                      {session.catatanInstruktur && (
+                        <p className="text-[11px] text-slate-700 bg-white p-2 rounded-lg border border-slate-200 mt-1.5 italic">
+                          "{session.catatanInstruktur}"
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions for Guru Piket */}
+                  <div className="space-y-2 pt-2 border-t border-slate-200/80">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveLWModal(session);
+                          setLwConfirmStatus(session.statusKonfirmasi as any);
+                          setLwCatatan(session.catatanInstruktur || '');
+                        }}
+                        className="flex-1 py-1.5 px-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
+                        title="Verifikasi atau ubah status konfirmasi rombel"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Verifikasi</span>
+                      </button>
+
+                      {/* Kirim WhatsApp ke Guru Pengampu */}
+                      <a
+                        href={`https://api.whatsapp.com/send?phone=${session.noWaInstruktur}&text=${encodeURIComponent(
+                          generateWaTextLocalWisdom(session) + `\n\nLink Konfirmasi Mandiri Guru:\n${teacherSelfLink}`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all cursor-pointer shadow-2xs"
+                        title="Kirim Pesan WhatsApp Permohonan Konfirmasi ke Guru Pengampu"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                      </a>
+
+                      {/* Salin Tautan Mandiri Guru */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard?.writeText(teacherSelfLink);
+                          alertSuccess('Tautan Disalin', `Link portal mandiri untuk ${session.instruktur} berhasil disalin ke clipboard.`);
+                        }}
+                        className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl transition-all cursor-pointer shadow-2xs"
+                        title="Salin Tautan Konfirmasi Mandiri Guru"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {isWaiting && (
+                      <p className="text-[10px] text-amber-800 font-semibold text-center bg-amber-50 py-1 rounded-lg border border-amber-200">
+                        ⏳ Menunggu aksi dari Bapak/Ibu {session.instruktur}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Period Selection Bar (Hanya tampil saat tab KBM Reguler aktif) */}
+      {activeKBMTab === 'kbm-reguler' && (
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {periods.map((p) => {
           const isActive = activePeriod === p.num;
@@ -400,8 +664,10 @@ export const MonitoringKBMView: React.FC = () => {
           );
         })}
       </div>
+      )}
 
-      {/* Main Grid: Form Left & Sidebars Right */}
+      {/* Main Grid: Form Left & Sidebars Right (Hanya tampil saat KBM Reguler aktif) */}
+      {activeKBMTab === 'kbm-reguler' && (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column (8 cols): Monitoring Form */}
         <div className="lg:col-span-8 bg-white p-5 sm:p-7 rounded-2xl border border-slate-200 shadow-2xs space-y-6">
@@ -499,6 +765,95 @@ export const MonitoringKBMView: React.FC = () => {
                 <span>Bel Masuk: <strong>07:00 WIB</strong></span>
               </div>
             </div>
+
+            {/* Solusi Kepulangan Lebih Awal: Banner Informasi Cut-Off Dispensasi Aktif */}
+            {cutOffPulangAwalList.some(c => c.status === 'Aktif' && (c.tipe === 'Massal' || c.kelasTerdampak.includes(selectedKelas) || c.kelasTerdampak.includes('Semua Kelas'))) && (
+              <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-2.5 text-xs text-amber-900">
+                <Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 animate-pulse" />
+                <div>
+                  <span className="font-extrabold uppercase text-[10px] bg-amber-200 text-amber-950 px-2 py-0.5 rounded-full inline-block mb-1">
+                    Dispensasi Pulang Lebih Awal Berlaku
+                  </span>
+                  <p className="leading-relaxed">
+                    Kelas {selectedKelas} memiliki ketetapan cut-off jam kepulangan pukul <strong>{cutOffPulangAwalList.find(c => c.status === 'Aktif')?.jamCutOff} WIB</strong> ({cutOffPulangAwalList.find(c => c.status === 'Aktif')?.alasan}). Pembelajaran setelah cut-off tidak dihitung kosong atau alpa.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* KHUSUS JAM KE-1: Input Absensi Manual Santri Tidak Hadir */}
+            {activePeriod === 1 && (
+              <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-50 via-teal-50/60 to-amber-50/40 border-2 border-emerald-400 rounded-2xl space-y-3.5 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-emerald-200/90">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                      <Users className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wide flex items-center gap-2">
+                        <span>Presensi Manual Siswa Tidak Hadir (Khusus Jam Ke-1)</span>
+                        <span className="text-[10px] bg-emerald-200 text-emerald-950 px-2 py-0.5 rounded-full font-bold">Wajib Dicek</span>
+                      </h4>
+                      <p className="text-[11px] text-emerald-800 font-medium mt-0.5 leading-snug">
+                        <strong>Aturan Sistem:</strong> Jika santri <u>tidak diinputkan</u> di sini, maka otomatis diakui <strong>HADIR</strong> dalam seluruh rekapitulasi kehadiran madrasah.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setJam1Nama('');
+                      setJam1Keterangan('');
+                      setShowJam1Modal(true);
+                    }}
+                    className="px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-extrabold rounded-xl flex items-center justify-center gap-1.5 shadow-sm cursor-pointer shrink-0 transition-all"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    <span>+ Catat Santri Tidak Hadir</span>
+                  </button>
+                </div>
+
+                {/* Status Santri Jam 1 Kelas Ini */}
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-bold text-slate-700">Daftar Santri Kelas {selectedKelas} Tidak Hadir Jam ke-1:</span>
+                    <span className="font-mono text-slate-500 font-bold text-[10px]">
+                      {siswaTidakMasukList.filter(s => s.kelas === selectedKelas && s.jamKe === 1).length} Santri Tercatat
+                    </span>
+                  </div>
+
+                  {siswaTidakMasukList.filter(s => s.kelas === selectedKelas && s.jamKe === 1).length === 0 ? (
+                    <div className="p-3 bg-white/90 rounded-xl border border-emerald-200 text-[11px] text-emerald-900 flex items-center gap-2 font-medium">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Seluruh santri Kelas {selectedKelas} otomatis dianggap <strong>HADIR LENGKAP</strong> karena belum ada input ketidakhadiran di jam ke-1.</span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {siswaTidakMasukList
+                        .filter(s => s.kelas === selectedKelas && s.jamKe === 1)
+                        .map((s) => (
+                          <div key={s.id} className="p-2.5 bg-white rounded-xl border border-rose-200 flex items-center justify-between text-xs shadow-2xs">
+                            <div>
+                              <p className="font-bold text-slate-900">{s.nama}</p>
+                              <p className="text-[10px] text-slate-500">{s.keterangan || 'Tidak hadir jam 1'}</p>
+                            </div>
+                            <div className="text-right">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                s.status === 'Sakit' ? 'bg-amber-100 text-amber-800' :
+                                s.status === 'Izin' ? 'bg-blue-100 text-blue-800' :
+                                'bg-rose-100 text-rose-800'
+                              }`}>
+                                {s.status} (Permanen)
+                              </span>
+                              <span className="block text-[9px] text-slate-400 mt-0.5">Rekap: Tidak Hadir</span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Radio Group 4: Status Guru di Kelas */}
             <div className="space-y-2.5">
@@ -886,6 +1241,7 @@ export const MonitoringKBMView: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
       {/* MODAL 1: PEMBERITAHUAN PERINGATAN KETERLAMBATAN GURU */}
       {showWarningModal && warningModalData && (
@@ -1231,6 +1587,277 @@ export const MonitoringKBMView: React.FC = () => {
                   className="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold cursor-pointer"
                 >
                   Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: INPUT ABSENSI MANUAL SANTRI TIDAK HADIR JAM KE-1 */}
+      {showJam1Modal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                  <Users className="w-5 h-5 text-emerald-700" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">
+                    Input Santri Tidak Hadir Jam ke-1
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Kelas {selectedKelas} • Khusus Jam Pelajaran Pertama
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowJam1Modal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-relaxed font-medium">
+              💡 <strong>Ketentuan Rekap:</strong> Santri yang diinputkan di sini akan ditetapkan status <strong>Tidak Hadir (Permanen)</strong> dalam rekapitulasi presensi madrasah. Santri lain yang tidak diinput otomatis dianggap <strong>Hadir</strong>.
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!jam1Nama.trim()) {
+                  alertError('Nama Santri Diperlukan', 'Silakan pilih atau ketik nama santri yang tidak hadir.');
+                  return;
+                }
+                catatSiswaTidakMasukJam1({
+                  nama: jam1Nama.trim(),
+                  kelas: selectedKelas,
+                  status: jam1Status,
+                  keterangan: jam1Keterangan.trim() || `Tidak hadir jam ke-1 (${jam1Status})`
+                });
+                alertSuccess(
+                  'Presensi Tidak Hadir Dicatat',
+                  `Santri ${jam1Nama} (${selectedKelas}) berhasil dicatat ${jam1Status} pada jam ke-1.`
+                );
+                setShowJam1Modal(false);
+                setJam1Nama('');
+                setJam1Keterangan('');
+              }}
+              className="space-y-3.5 text-xs"
+            >
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Nama Santri <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  list="siswa-kelas-list"
+                  value={jam1Nama}
+                  onChange={(e) => setJam1Nama(e.target.value)}
+                  placeholder="Ketik atau pilih nama santri..."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:bg-white focus:ring-1 focus:ring-emerald-600"
+                  required
+                />
+                <datalist id="siswa-kelas-list">
+                  {siswas
+                    .filter(s => s.kelas === selectedKelas)
+                    .map(s => (
+                      <option key={s.id} value={s.nama} />
+                    ))}
+                </datalist>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Status Ketidakhadiran <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['Sakit', 'Izin', 'Alpa'] as const).map((st) => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => setJam1Status(st)}
+                      className={`py-2 px-3 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
+                        jam1Status === st
+                          ? st === 'Sakit'
+                            ? 'bg-amber-100 border-amber-400 text-amber-900 shadow-xs'
+                            : st === 'Izin'
+                            ? 'bg-blue-100 border-blue-400 text-blue-900 shadow-xs'
+                            : 'bg-rose-100 border-rose-400 text-rose-900 shadow-xs'
+                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Keterangan / Alasan
+                </label>
+                <input
+                  type="text"
+                  value={jam1Keterangan}
+                  onChange={(e) => setJam1Keterangan(e.target.value)}
+                  placeholder="Misal: Surat dokter terlampir / Izin keluarga..."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:bg-white focus:ring-1 focus:ring-emerald-600"
+                />
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowJam1Modal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs rounded-xl shadow-md shadow-emerald-700/20 cursor-pointer"
+                >
+                  Simpan Tidak Hadir
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 5: VERIFIKASI & CATAT KONFIRMASI LOCAL WISDOM INSTUKTUR */}
+      {activeLWModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-teal-100 text-teal-800 flex items-center justify-center font-bold">
+                  <Sparkles className="w-5 h-5 text-teal-700" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Konfirmasi Kehadiran Praktikum Local Wisdom
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    {activeLWModal.jurusan} · {activeLWModal.lokasi} ({activeLWModal.tingkatKelas})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveLWModal(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* WhatsApp Template Box */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                  <MessageCircle className="w-4 h-4 text-emerald-600" />
+                  Format Permohonan Konfirmasi WhatsApp:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentOrigin = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : 'http://localhost:3000';
+                    const teacherSelfLink = `${currentOrigin}?portal=konfirmasi&id=${activeLWModal.id}&guru=${encodeURIComponent(activeLWModal.instruktur)}&kelas=${encodeURIComponent(activeLWModal.tingkatKelas)}&mapel=${encodeURIComponent(activeLWModal.jurusan + ' (' + activeLWModal.lokasi + ')')}`;
+                    const fullText = generateWaTextLocalWisdom(activeLWModal) + `\n\nLink Konfirmasi Mandiri Guru:\n${teacherSelfLink}`;
+                    navigator.clipboard?.writeText(fullText);
+                    alertSuccess('Pesan Disalin', 'Pesan WhatsApp beserta link portal mandiri guru berhasil disalin.');
+                  }}
+                  className="text-emerald-700 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <Copy className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Salin Pesan WA</span>
+                </button>
+              </div>
+
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-[11px] font-mono text-slate-700 whitespace-pre-wrap max-h-36 overflow-y-auto leading-relaxed">
+                {generateWaTextLocalWisdom(activeLWModal)}
+              </div>
+
+              <div className="flex gap-2">
+                <a
+                  href={`https://api.whatsapp.com/send?phone=${activeLWModal.noWaInstruktur}&text=${encodeURIComponent(
+                    generateWaTextLocalWisdom(activeLWModal) +
+                    `\n\nLink Konfirmasi Mandiri Guru:\n${(typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : 'http://localhost:3000')}?portal=konfirmasi&id=${activeLWModal.id}&guru=${encodeURIComponent(activeLWModal.instruktur)}&kelas=${encodeURIComponent(activeLWModal.tingkatKelas)}&mapel=${encodeURIComponent(activeLWModal.jurusan + ' (' + activeLWModal.lokasi + ')')}`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Kirim via WhatsApp ke {activeLWModal.instruktur}</span>
+                  <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                </a>
+
+                <a
+                  href={`?portal=konfirmasi&id=${activeLWModal.id}&guru=${encodeURIComponent(activeLWModal.instruktur)}&kelas=${encodeURIComponent(activeLWModal.tingkatKelas)}&mapel=${encodeURIComponent(activeLWModal.jurusan + ' (' + activeLWModal.lokasi + ')')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                  title="Buka form konfirmasi mandiri guru di tab terpisah"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Buka Portal Mandiri</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Form Catat Respon Guru Pengampu */}
+            <div className="pt-3 border-t border-slate-100 space-y-3 text-xs">
+              <h4 className="font-bold text-slate-800">Catat Respon / Konfirmasi Guru Pengampu:</h4>
+
+              <div>
+                <label className="block font-semibold text-slate-600 mb-1">Status Kehadiran Rombel</label>
+                <select
+                  value={lwConfirmStatus}
+                  onChange={(e) => setLwConfirmStatus(e.target.value as any)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:bg-white"
+                >
+                  <option value="Hadir Lengkap">Hadir Lengkap (Seluruh Siswa Hadir di Lab/Bengkel)</option>
+                  <option value="Ada Siswa Absen">Ada Siswa Absen (Ada Siswa Sakit / Izin / Alpa)</option>
+                  <option value="Selesai">Kegiatan Praktik Telah Selesai</option>
+                  <option value="Menunggu Konfirmasi">Menunggu Konfirmasi Guru Pengampu</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-600 mb-1">Catatan Guru Pengampu / Siswa Sakit</label>
+                <textarea
+                  rows={2}
+                  value={lwCatatan}
+                  onChange={(e) => setLwCatatan(e.target.value)}
+                  placeholder="Contoh: Seluruh siswa hadir lengkap, 2 siswa izin ke UKS..."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:bg-white"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveLWModal(null)}
+                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateLocalWisdomStatus(activeLWModal.id, lwConfirmStatus, lwCatatan);
+                    alertSuccess('Status Diperbarui', `Status praktikum ${activeLWModal.jurusan} berhasil diubah menjadi '${lwConfirmStatus}'.`);
+                    setActiveLWModal(null);
+                  }}
+                  className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl font-bold shadow-xs transition-all cursor-pointer"
+                >
+                  Simpan Konfirmasi
                 </button>
               </div>
             </div>

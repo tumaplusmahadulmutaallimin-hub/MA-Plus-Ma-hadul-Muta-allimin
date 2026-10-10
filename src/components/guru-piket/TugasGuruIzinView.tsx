@@ -19,12 +19,13 @@ import {
   Copy,
   Check,
   ExternalLink,
-  Download
+  Download,
+  UserCheck
 } from 'lucide-react';
 import { exportToXLSX } from '../../utils/excelHelper';
 
 export const TugasGuruIzinView: React.FC = () => {
-  const { guruTidakMasukList, gurus, assignSubstituteTeacher, confirmAction, alertSuccess } = useApp();
+  const { guruTidakMasukList, gurus, assignSubstituteTeacher, confirmAction, alertSuccess, alertError } = useApp();
   const [expandedId, setExpandedId] = useState<string>('gtm-1');
   const [filterKelas, setFilterKelas] = useState('Semua');
   const [filterStatus, setFilterStatus] = useState('Semua');
@@ -382,21 +383,19 @@ export const TugasGuruIzinView: React.FC = () => {
                                   <div className="flex items-center justify-center gap-1.5">
                                     <button
                                       onClick={() => {
-                                        const candidate = substituteCandidates.find(c => c !== item.guruNama) || 'Zainal Arifin, S.Pd (Guru Piket)';
-                                        confirmAction({
-                                          title: 'Tetapkan Guru Pengganti (Inval)',
-                                          message: `Tetapkan "${candidate}" sebagai guru pendamping / pengganti di Kelas ${j.kelas} (Mapel: ${j.mapel}, Jam Ke-${j.jamKe})?`,
-                                          confirmText: 'Ya, Tetapkan Guru',
-                                          onConfirm: () => {
-                                            assignSubstituteTeacher(
-                                              item.id,
-                                              j.jamKe,
-                                              j.kelas,
-                                              candidate
-                                            );
-                                            alertSuccess('Guru Pengganti Ditetapkan', `${candidate} berhasil ditugaskan untuk mendampingi Kelas ${j.kelas}.`);
-                                          }
+                                        const defaultCandidate = j.guruPengganti || substituteCandidates.find(c => c !== item.guruNama) || 'Zainal Arifin, S.Pd (Guru Piket)';
+                                        setInvalModal({
+                                          itemId: item.id,
+                                          guruNama: item.guruNama,
+                                          alasan: item.alasan,
+                                          kelas: j.kelas,
+                                          jamKe: j.jamKe,
+                                          mapel: j.mapel,
+                                          tugas: j.tugas,
+                                          currentPengganti: j.guruPengganti
                                         });
+                                        setSelectedSubstitute(defaultCandidate);
+                                        setInvalNotes('');
                                       }}
                                       className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
                                         j.status === 'Ditetapkan'
@@ -404,7 +403,7 @@ export const TugasGuruIzinView: React.FC = () => {
                                           : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs'
                                       }`}
                                     >
-                                      {j.status === 'Ditetapkan' ? 'Ubah' : 'Inval'}
+                                      {j.status === 'Ditetapkan' ? 'Ubah (Manual)' : 'Pilih Inval (Manual)'}
                                     </button>
 
                                     <button
@@ -590,6 +589,130 @@ export const TugasGuruIzinView: React.FC = () => {
                 Tutup
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Inval Assignment Modal */}
+      {invalModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                  <UserCheck className="w-5 h-5 text-emerald-700" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">
+                    Pilih Manual Guru Pengganti (Inval)
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Penugasan fleksibel oleh Guru Piket
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setInvalModal(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Rincian Kelas & Guru Berhalangan */}
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">Guru Berhalangan:</span>
+                <span className="font-bold text-slate-900">{invalModal.guruNama} ({invalModal.alasan})</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">Jadwal Terdampak:</span>
+                <span className="font-bold text-emerald-800">
+                  Kelas {invalModal.kelas} · Jam Ke-{invalModal.jamKe} ({invalModal.mapel})
+                </span>
+              </div>
+              <div className="pt-2 border-t border-slate-200/80">
+                <span className="text-slate-500 block text-[11px]">Tugas untuk Siswa:</span>
+                <p className="font-medium text-slate-700 italic mt-0.5">"{invalModal.tugas}"</p>
+              </div>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!selectedSubstitute) {
+                  alertError('Pilih Guru', 'Silakan pilih guru pengganti terlebih dahulu.');
+                  return;
+                }
+                assignSubstituteTeacher(
+                  invalModal.itemId,
+                  invalModal.jamKe,
+                  invalModal.kelas,
+                  selectedSubstitute,
+                  invalNotes
+                );
+                alertSuccess(
+                  'Guru Pengganti Ditetapkan',
+                  `${selectedSubstitute} berhasil ditugaskan secara manual untuk mendampingi Kelas ${invalModal.kelas}.`
+                );
+                setInvalModal(null);
+              }}
+              className="space-y-3.5 text-xs"
+            >
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Pilih Guru Pengganti / Pendamping <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={selectedSubstitute}
+                  onChange={(e) => setSelectedSubstitute(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:bg-white focus:ring-1 focus:ring-emerald-600"
+                  required
+                >
+                  <option value="">-- Pilih Guru yang Tersedia --</option>
+                  <option value="Zainal Arifin, S.Pd (Guru Piket)">Zainal Arifin, S.Pd (Guru Piket Hari Ini)</option>
+                  <option value="Ahmad Setiawan, S.Pd (Guru Piket)">Ahmad Setiawan, S.Pd (Guru Piket Hari Ini)</option>
+                  <option value="Siti Fatimah, S.Pd (Guru Piket)">Siti Fatimah, S.Pd (Guru Piket Hari Ini)</option>
+                  {substituteCandidates
+                    .filter(name => name !== invalModal.guruNama)
+                    .map((name, idx) => (
+                      <option key={idx} value={name}>{name}</option>
+                    ))}
+                </select>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Pilihlah guru yang sedang jam kosong atau guru piket yang bersedia mendampingi kelas.
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Catatan / Instruksi Khusus untuk Guru Pengganti
+                </label>
+                <textarea
+                  rows={2}
+                  value={invalNotes}
+                  onChange={(e) => setInvalNotes(e.target.value)}
+                  placeholder="Contoh: Dampingi pengerjaan tugas modul hal 24, buku dikumpulkan di akhir jam..."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:bg-white"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setInvalModal(null)}
+                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-xs transition-all cursor-pointer"
+                >
+                  Tetapkan Guru Pengganti
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -16,7 +16,11 @@ import {
   PelanggaranSiswaData,
   LaporKendalaData,
   LaporanGuruPiketData,
-  PengumumanData
+  PengumumanData,
+  CutOffPulangAwal,
+  LocalWisdomSession,
+  MasterKategoriItem,
+  RiwayatPergantianTahun
 } from '../types';
 import {
   INITIAL_USERS,
@@ -36,11 +40,15 @@ import {
   INITIAL_PELANGGARAN,
   INITIAL_KENDALA,
   INITIAL_LAPORAN_PIKET,
-  INITIAL_PENGUMUMAN
+  INITIAL_PENGUMUMAN,
+  INITIAL_MADRASAH_INFO
 } from '../data/mockData';
 import { GlobalModalPopup, PopupConfig } from '../components/common/GlobalModalPopup';
 
 interface AppContextType {
+  purgeDummyData: () => void;
+  kosongkanMasterData: () => void;
+  muatMasterDataResmi: () => void;
   currentUser: UserAccount;
   setCurrentUser: (user: UserAccount) => void;
   users: UserAccount[];
@@ -52,6 +60,9 @@ interface AppContextType {
   setActiveTabSub: (tab: string) => void;
   isPublicReportOpen: boolean;
   setIsPublicReportOpen: (open: boolean) => void;
+  isMobileSidebarOpen: boolean;
+  setIsMobileSidebarOpen: (open: boolean) => void;
+  toggleMobileSidebar: () => void;
 
   // Real data state
   gurus: Guru[];
@@ -163,10 +174,79 @@ interface AppContextType {
   alertError: (title: string, message: string) => void;
   alertInfo: (title: string, message: string) => void;
 
+  // Operasional Khusus: Cut-off Kepulangan Lebih Awal & Local Wisdom
+  cutOffPulangAwalList: CutOffPulangAwal[];
+  setCutOffPulangAwalList: React.Dispatch<React.SetStateAction<CutOffPulangAwal[]>>;
+  tambahCutOffPulangAwal: (data: Omit<CutOffPulangAwal, 'id' | 'tanggal' | 'status'>) => void;
+  batalkanCutOffPulangAwal: (id: string) => void;
+  localWisdomList: LocalWisdomSession[];
+  setLocalWisdomList: React.Dispatch<React.SetStateAction<LocalWisdomSession[]>>;
+  updateLocalWisdomStatus: (id: string, status: any, catatan?: string) => void;
+  generateWaTextLocalWisdom: (session: LocalWisdomSession) => string;
+
+  // Master Data Kategori & Program Dinamis
+  masterKategoriList: MasterKategoriItem[];
+  setMasterKategoriList: React.Dispatch<React.SetStateAction<MasterKategoriItem[]>>;
+  tambahMasterKategori: (item: Omit<MasterKategoriItem, 'id'>) => void;
+  editMasterKategori: (id: string, item: Partial<MasterKategoriItem>) => void;
+  hapusMasterKategori: (id: string) => void;
+
+  // Presensi & KBM
+  tindakSiswaTerlambat: (id: string, tindakan: 'Teguran' | 'Dicatat' | 'Pembinaan' | 'Panggil Orang Tua') => void;
+  catatSiswaTidakMasukJam1: (data: { nama: string; kelas: string; status: 'Sakit' | 'Izin' | 'Alpa'; keterangan?: string }) => void;
+  activeIzinLuarCount: number;
+  activeIzinKamarMandiCount: number;
+  maxKuotaLuarLingkungan: number;
+  maxKuotaKamarMandi: number;
+
   // Authentication & Security
   login: (username: string, password: string) => { success: boolean; message: string; user?: UserAccount };
   logout: () => void;
+
+  // Tahun Ajaran & Kenaikan Kelas
+  tahunAjaranAktif: string;
+  semesterAktif: 'Gasal' | 'Genap';
+  riwayatTahunAjaranList: RiwayatPergantianTahun[];
+  gantiSemester: (semesterBaru: 'Gasal' | 'Genap') => void;
+  updateTahunAjaranManual: (tahunAjaran: string, semester: 'Gasal' | 'Genap') => void;
+  prosesKenaikanKelasDanKelulusan: (params: {
+    tahunAjaranBaru: string;
+    semesterBaru: 'Gasal' | 'Genap';
+    decisions: Record<string, {
+      status: 'Lulus' | 'Naik' | 'Tinggal' | 'Mutasi';
+      kelasTujuan?: string;
+      catatan?: string;
+    }>;
+    resetPresensiHarian?: boolean;
+    resetPoinPelanggaran?: boolean;
+    catatanPergantian?: string;
+  }) => { success: boolean; message: string; summary: any };
+  rollbackPergantianTahun: (historyId: string) => { success: boolean; message: string };
 }
+
+const INITIAL_CUTOFF_LIST: CutOffPulangAwal[] = [];
+
+const INITIAL_LOCAL_WISDOM_LIST: LocalWisdomSession[] = [];
+
+const INITIAL_MASTER_KATEGORI_LIST: MasterKategoriItem[] = [
+  { id: 'mk-1', nama: 'Ke Puskesmas / Faskes', grup: 'Izin Keluar', jenis: 'Kesehatan', kuota: 6, keterangan: 'Pemeriksaan darurat medis' },
+  { id: 'mk-2', nama: 'Urusan Keluarga Mendesak', grup: 'Izin Keluar', jenis: 'Keluarga', kuota: 6, keterangan: 'Dijemput orang tua/wali' },
+  { id: 'mk-3', nama: 'Ke Bank / Administrasi', grup: 'Izin Keluar', jenis: 'Keuangan', kuota: 6, keterangan: 'Keperluan ATM/Bank madrasah' },
+  { id: 'mk-4', nama: 'Ke Toilet / Kamar Mandi', grup: 'Izin Keluar', jenis: 'Kamar Mandi', kuota: 12, keterangan: 'Maks 12 orang (keluar berpasangan 2 siswa)' },
+  { id: 'mk-5', nama: 'Izin Pulang Sakit', grup: 'Izin Keluar', jenis: 'Pulang Awal', kuota: 6, keterangan: 'Dispensasi pulang kondisi lemah' },
+  { id: 'mk-6', nama: 'Tim Distribusi MBG', grup: 'Program Tugas Khusus', jenis: 'Tetap Harian', jam: '11:30 - 12:45', kuota: 12, keterangan: 'Membantu pembagian makan bergizi gratis' },
+  { id: 'mk-7', nama: 'Tahfidz Al-Qur\'an', grup: 'Program Tugas Khusus', jenis: 'Program Tetap', jam: '06:30 - 08:30', kuota: 15, keterangan: 'Setoran hafalan Al-Qur\'an santri' },
+  { id: 'mk-8', nama: 'Pengurus OSIS / MPK', grup: 'Program Tugas Khusus', jenis: 'Organisasi', jam: 'Kondisional', kuota: 24, keterangan: 'Kegiatan rapat dan koordinasi agenda madrasah' },
+  { id: 'mk-9', nama: 'Tim IT Madrasah', grup: 'Program Tugas Khusus', jenis: 'Program Tetap', jam: 'Kondisional', kuota: 8, keterangan: 'Dukungan lab TIK dan streaming' },
+  { id: 'mk-10', nama: 'Petugas Upacara / Paskibra', grup: 'Program Tugas Khusus', jenis: 'Kepanitiaan', jam: '06:30 - 07:45', kuota: 18, keterangan: 'Latihan upacara hari Senin' },
+  { id: 'mk-11', nama: 'Duta Madrasah & Perlombaan', grup: 'Program Tugas Khusus', jenis: 'Insidental', jam: 'Dispensasi', kuota: 6, keterangan: 'Delegasi kompetisi luar madrasah' },
+  { id: 'mk-12', nama: 'Teguran Lisan & Pembinaan', grup: 'Tindakan Terlambat', bobotPoin: 2, keterangan: 'Diakui HADIR dalam rekapitulasi' },
+  { id: 'mk-13', nama: 'Pencatatan Buku Piket', grup: 'Tindakan Terlambat', bobotPoin: 3, keterangan: 'Dicatat dan diakui HADIR' },
+  { id: 'mk-14', nama: 'Pembinaan Khusus Piket', grup: 'Tindakan Terlambat', bobotPoin: 5, keterangan: 'Tugas kebersihan dan diakui HADIR' },
+  { id: 'mk-15', nama: 'Pemanggilan Orang Tua / BK', grup: 'Tindakan Terlambat', bobotPoin: 15, keterangan: 'Untuk keterlambatan berulang' },
+  { id: 'mk-16', nama: 'Pelajaran Local Wisdom (Kejuruan)', grup: 'Program Madrasah', keterangan: 'Praktik di Lab TIK, Bengkel TKRO, BLK Busana, Dapur Boga' },
+  { id: 'mk-17', nama: 'Program Makan Bergizi Gratis (MBG)', grup: 'Program Madrasah', keterangan: 'Katering nutrisi santri dan asatidz' }
+];
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -179,59 +259,86 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeTabSub, setActiveTabSub] = useState<string>('all');
   const [isPublicReportOpen, setIsPublicReportOpen] = useState<boolean>(false);
   const [popupConfig, setPopupConfig] = useState<PopupConfig | null>(null);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
+  const toggleMobileSidebar = () => setIsMobileSidebarOpen((prev) => !prev);
+
+  // Enforce authentic MA Plus Katerban-Ngawi dataset version (Hanya Data Guru Resmi 17 Orang yang dipertahankan, seluruh data dummy dibersihkan)
+  const CURRENT_DATA_VERSION = 'v12_maplus_pure_guru_only_clean';
+  const isMigrated = (() => {
+    try {
+      return localStorage.getItem('maplus_data_version') === CURRENT_DATA_VERSION;
+    } catch {
+      return false;
+    }
+  })();
 
   const [gurus, setGurus] = useState<Guru[]>(() => {
     try {
       const saved = localStorage.getItem('maplus_guru_list');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch {}
     return INITIAL_GURU;
   });
 
   const [siswas, setSiswas] = useState<Siswa[]>(() => {
     try {
-      const saved = localStorage.getItem('maplus_siswa_list');
-      if (saved) return JSON.parse(saved);
+      if (isMigrated) {
+        const saved = localStorage.getItem('maplus_siswa_list');
+        if (saved) return JSON.parse(saved);
+      }
     } catch {}
     return INITIAL_SISWA;
   });
 
   const [kelasList, setKelasList] = useState<Kelas[]>(() => {
     try {
-      const saved = localStorage.getItem('maplus_kelas_list');
-      if (saved) return JSON.parse(saved);
+      if (isMigrated) {
+        const saved = localStorage.getItem('maplus_kelas_list');
+        if (saved) return JSON.parse(saved);
+      }
     } catch {}
     return INITIAL_KELAS;
   });
 
   const [mapelList, setMapelList] = useState<MataPelajaran[]>(() => {
     try {
-      const saved = localStorage.getItem('maplus_mapel_list');
-      if (saved) return JSON.parse(saved);
+      if (isMigrated) {
+        const saved = localStorage.getItem('maplus_mapel_list');
+        if (saved) return JSON.parse(saved);
+      }
     } catch {}
     return INITIAL_MAPEL;
   });
 
   const [ruangList, setRuangList] = useState<RuangLokasi[]>(() => {
     try {
-      const saved = localStorage.getItem('maplus_ruang_list');
-      if (saved) return JSON.parse(saved);
+      if (isMigrated) {
+        const saved = localStorage.getItem('maplus_ruang_list');
+        if (saved) return JSON.parse(saved);
+      }
     } catch {}
     return INITIAL_RUANG;
   });
 
   const [jadwalKBMList, setJadwalKBMList] = useState<JadwalKBM[]>(() => {
     try {
-      const saved = localStorage.getItem('maplus_jadwal_kbm');
-      if (saved) return JSON.parse(saved);
+      if (isMigrated) {
+        const saved = localStorage.getItem('maplus_jadwal_kbm');
+        if (saved) return JSON.parse(saved);
+      }
     } catch {}
     return INITIAL_JADWAL_KBM;
   });
 
   const [jadwalPiketList, setJadwalPiketList] = useState<JadwalGuruPiket[]>(() => {
     try {
-      const saved = localStorage.getItem('maplus_jadwal_piket');
-      if (saved) return JSON.parse(saved);
+      if (isMigrated) {
+        const saved = localStorage.getItem('maplus_jadwal_piket');
+        if (saved) return JSON.parse(saved);
+      }
     } catch {}
     return INITIAL_JADWAL_PIKET;
   });
@@ -252,13 +359,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return INITIAL_MONITORING_KBM;
   });
   const [siswaTidakMasukList, setSiswaTidakMasukList] = useState<any[]>(INITIAL_SISWA_TIDAK_MASUK);
-  const [siswaTerlambatList, setSiswaTerlambatList] = useState<SiswaTerlambatData[]>(INITIAL_SISWA_TERLAMBAT);
+  const [siswaTerlambatList, setSiswaTerlambatList] = useState<SiswaTerlambatData[]>(() => {
+    // Pastikan siswa yang sudah ada tindakan langsung memiliki statusRekapKehadiran Hadir
+    return INITIAL_SISWA_TERLAMBAT.map(st => ({
+      ...st,
+      statusRekapKehadiran: (st.tindakan && st.tindakan !== 'Belum Ditindak') ? ('Hadir (Selesai Ditindak)' as const) : ('Belum Ditindak' as const)
+    }));
+  });
   const [izinKeluarList, setIzinKeluarList] = useState<IzinKeluarData[]>(INITIAL_IZIN_KELUAR);
   const [tugasKhususList, setTugasKhususList] = useState<SiswaTugasKhususData[]>(INITIAL_TUGAS_KHUSUS);
   const [pelanggaranList, setPelanggaranList] = useState<PelanggaranSiswaData[]>(INITIAL_PELANGGARAN);
   const [kendalaList, setKendalaList] = useState<LaporKendalaData[]>(INITIAL_KENDALA);
   const [laporanPiketList, setLaporanPiketList] = useState<LaporanGuruPiketData[]>(INITIAL_LAPORAN_PIKET);
   const [pengumumanList, setPengumumanList] = useState<PengumumanData[]>(INITIAL_PENGUMUMAN);
+
+  // Operasional Khusus State
+  const [cutOffPulangAwalList, setCutOffPulangAwalList] = useState<CutOffPulangAwal[]>(() => {
+    try {
+      const saved = localStorage.getItem('maplus_cutoff_list');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_CUTOFF_LIST;
+  });
+
+  const [localWisdomList, setLocalWisdomList] = useState<LocalWisdomSession[]>(() => {
+    try {
+      const saved = localStorage.getItem('maplus_local_wisdom');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_LOCAL_WISDOM_LIST;
+  });
+
+  const [masterKategoriList, setMasterKategoriList] = useState<MasterKategoriItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('maplus_master_kategori');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_MASTER_KATEGORI_LIST;
+  });
 
   // Auto-sync persistent datasets to localStorage
   useEffect(() => {
@@ -292,6 +430,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     try { localStorage.setItem('maplus_guru_tidak_masuk', JSON.stringify(guruTidakMasukList)); } catch {}
   }, [guruTidakMasukList]);
+
+  useEffect(() => {
+    try { localStorage.setItem('maplus_cutoff_list', JSON.stringify(cutOffPulangAwalList)); } catch {}
+  }, [cutOffPulangAwalList]);
+
+  useEffect(() => {
+    try { localStorage.setItem('maplus_local_wisdom', JSON.stringify(localWisdomList)); } catch {}
+  }, [localWisdomList]);
+
+  useEffect(() => {
+    try { localStorage.setItem('maplus_master_kategori', JSON.stringify(masterKategoriList)); } catch {}
+  }, [masterKategoriList]);
+
+  // Enforce version v12 on initial load: Bersihkan seluruh data dummy siswa & log transaksi, pertahankan data guru resmi
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('maplus_data_version') !== CURRENT_DATA_VERSION) {
+        localStorage.setItem('maplus_siswa_list', JSON.stringify([]));
+        localStorage.setItem('maplus_guru_tidak_masuk', JSON.stringify([]));
+        localStorage.setItem('maplus_monitoring_kbm', JSON.stringify([]));
+        localStorage.setItem('maplus_siswa_tidak_masuk', JSON.stringify([]));
+        localStorage.setItem('maplus_siswa_terlambat', JSON.stringify([]));
+        localStorage.setItem('maplus_izin_keluar', JSON.stringify([]));
+        localStorage.setItem('maplus_tugas_khusus', JSON.stringify([]));
+        localStorage.setItem('maplus_pelanggaran', JSON.stringify([]));
+        localStorage.setItem('maplus_kendala', JSON.stringify([]));
+        localStorage.setItem('maplus_laporan_piket', JSON.stringify([]));
+        localStorage.setItem('maplus_pengumuman', JSON.stringify([]));
+        localStorage.setItem('maplus_cutoff_list', JSON.stringify([]));
+        localStorage.setItem('maplus_local_wisdom', JSON.stringify([]));
+        localStorage.setItem('maplus_data_version', CURRENT_DATA_VERSION);
+        setSiswas([]);
+        setGuruTidakMasukList([]);
+        setMonitoringKBMList([]);
+        setSiswaTidakMasukList([]);
+        setSiswaTerlambatList([]);
+        setIzinKeluarList([]);
+        setTugasKhususList([]);
+        setPelanggaranList([]);
+        setKendalaList([]);
+        setLaporanPiketList([]);
+        setPengumumanList([]);
+        setCutOffPulangAwalList([]);
+        setLocalWisdomList([]);
+      }
+    } catch {}
+  }, []);
 
   // Sync monitoring state across browser tabs & devices in realtime
   useEffect(() => {
@@ -479,9 +664,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       kelas: newIzin.kelas || 'XA',
       tujuan: newIzin.tujuan || 'Ke Puskesmas',
       jenisIzin: newIzin.jenisIzin || 'Izin Keluar',
+      kategoriTempat: newIzin.kategoriTempat || (newIzin.tujuan === 'Ke Kamar Mandi' ? 'Kamar Mandi' : 'Luar Lingkungan'),
       waktuKeluar: newIzin.waktuKeluar || '09:15',
       estimasiKembali: newIzin.estimasiKembali || '10:30',
-      durasi: '1j 15m',
+      durasi: newIzin.durasi || '1j 15m',
       status: 'Masih Keluar',
       dicatatOleh: currentUser.namaLengkap,
       tanggal: '04/09/2026',
@@ -491,6 +677,129 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     setIzinKeluarList(prev => [item, ...prev]);
   };
+
+  const tindakSiswaTerlambat = (id: string, tindakan: 'Teguran' | 'Dicatat' | 'Pembinaan' | 'Panggil Orang Tua') => {
+    setSiswaTerlambatList(prev => prev.map(s => {
+      if (s.id === id) {
+        return {
+          ...s,
+          tindakan,
+          statusRekapKehadiran: 'Hadir (Selesai Ditindak)' as const
+        };
+      }
+      return s;
+    }));
+    alertSuccess('Tindakan Berhasil Dicatat', `Siswa telah diberikan ${tindakan}. Status dalam rekapitulasi madrasah diakui HADIR.`);
+  };
+
+  const catatSiswaTidakMasukJam1 = (data: { nama: string; kelas: string; status: 'Sakit' | 'Izin' | 'Alpa'; keterangan?: string }) => {
+    const newItem = {
+      id: `stm-${Date.now()}`,
+      no: siswaTidakMasukList.length + 1,
+      nama: data.nama,
+      kelas: data.kelas,
+      status: data.status,
+      keterangan: data.keterangan || `Dicatat pada Monitoring KBM Jam ke-1`,
+      tanggal: '04/09/2026',
+      dicatatPadaJam: 1,
+      dicatatOleh: currentUser.namaLengkap
+    };
+    setSiswaTidakMasukList(prev => [newItem, ...prev]);
+    alertSuccess('Presensi Jam ke-1 Tersimpan', `${data.nama} (${data.kelas}) dicatat ${data.status}. Siswa lain otomatis diakui HADIR.`);
+  };
+
+  const tambahCutOffPulangAwal = (data: Omit<CutOffPulangAwal, 'id' | 'tanggal' | 'status'>) => {
+    const newCutoff: CutOffPulangAwal = {
+      id: `co-${Date.now()}`,
+      ...data,
+      tanggal: '04/09/2026',
+      status: 'Aktif'
+    };
+    const updated = [newCutoff, ...cutOffPulangAwalList];
+    setCutOffPulangAwalList(updated);
+    try { localStorage.setItem('maplus_cutoff_list', JSON.stringify(updated)); } catch {}
+    alertSuccess('Dispensasi Pulang Awal Ditetapkan', `Kepulangan pukul ${data.jamCutOff} (${data.tipe}) berhasil diaktifkan.`);
+  };
+
+  const batalkanCutOffPulangAwal = (id: string) => {
+    const updated = cutOffPulangAwalList.filter(c => c.id !== id);
+    setCutOffPulangAwalList(updated);
+    try { localStorage.setItem('maplus_cutoff_list', JSON.stringify(updated)); } catch {}
+    alertInfo('Dispensasi Dibatalkan', 'Status jam kepulangan dikembalikan normal sesuai jadwal.');
+  };
+
+  const updateLocalWisdomStatus = (id: string, status: any, catatan?: string) => {
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`;
+    const updated = localWisdomList.map(session => {
+      if (session.id === id) {
+        return {
+          ...session,
+          statusKonfirmasi: status,
+          waktuKonfirmasi: timeStr,
+          catatanInstruktur: catatan !== undefined ? catatan : session.catatanInstruktur
+        };
+      }
+      return session;
+    });
+    setLocalWisdomList(updated);
+    try { localStorage.setItem('maplus_local_wisdom', JSON.stringify(updated)); } catch {}
+    alertSuccess('Konfirmasi Diperbarui', `Presensi Local Wisdom untuk ${updated.find(s => s.id === id)?.jurusan} berhasil disinkronkan.`);
+  };
+
+  const generateWaTextLocalWisdom = (session: LocalWisdomSession) => {
+    return `*PERMOHONAN KONFIRMASI PRESENSI LOCAL WISDOM*\n` +
+      `*MA PLUS MA'HADUL MUTA'ALLIMIN*\n\n` +
+      `Assalamu'alaikum Wr. Wb.\n` +
+      `Yth. Bpk/Ibu ${session.instruktur}\n` +
+      `Instruktur / Guru Praktik: ${session.jurusan}\n` +
+      `Lokasi Praktik: ${session.lokasi}\n\n` +
+      `Hari/Tanggal: ${session.hari}, 4 September 2026\n` +
+      `Tingkat Kelas: ${session.tingkatKelas}\n` +
+      `Jumlah Siswa: ${session.jumlahSiswa} Orang\n\n` +
+      `Sehubungan pelaksanaan praktik kejuruan Local Wisdom di luar kelas reguler, mohon konfirmasi:\n` +
+      `1. Apakah seluruh santri telah hadir dan mengikuti kegiatan di ${session.lokasi}?\n` +
+      `2. Jika ada siswa yang berhalangan/sakit/izin, mohon kirimkan nama siswa bersangkutan.\n\n` +
+      `Pesan ini dikirimkan via Portal Guru Piket Madrasah.\n` +
+      `Petugas Piket: ${currentUser.namaLengkap}\n` +
+      `Wassalamu'alaikum Wr. Wb.`;
+  };
+
+  const tambahMasterKategori = (item: Omit<MasterKategoriItem, 'id'>) => {
+    const newItem: MasterKategoriItem = {
+      id: `mk-${Date.now()}`,
+      ...item
+    };
+    const updated = [...masterKategoriList, newItem];
+    setMasterKategoriList(updated);
+    try { localStorage.setItem('maplus_master_kategori', JSON.stringify(updated)); } catch {}
+    alertSuccess('Kategori Berhasil Ditambahkan', `Item "${item.nama}" berhasil disimpan ke Master Data.`);
+  };
+
+  const editMasterKategori = (id: string, item: Partial<MasterKategoriItem>) => {
+    const updated = masterKategoriList.map(k => k.id === id ? { ...k, ...item } : k);
+    setMasterKategoriList(updated);
+    try { localStorage.setItem('maplus_master_kategori', JSON.stringify(updated)); } catch {}
+    alertSuccess('Perubahan Tersimpan', 'Data kategori berhasil diperbarui.');
+  };
+
+  const hapusMasterKategori = (id: string) => {
+    const updated = masterKategoriList.filter(k => k.id !== id);
+    setMasterKategoriList(updated);
+    try { localStorage.setItem('maplus_master_kategori', JSON.stringify(updated)); } catch {}
+    alertInfo('Kategori Dihapus', 'Item kategori berhasil dihapus dari sistem.');
+  };
+
+  const maxKuotaLuarLingkungan = 6;
+  const maxKuotaKamarMandi = 12;
+
+  const activeIzinLuarCount = izinKeluarList.filter(
+    ik => ik.status === 'Masih Keluar' && (ik.kategoriTempat === 'Luar Lingkungan' || (!ik.kategoriTempat && ik.tujuan !== 'Ke Kamar Mandi' && ik.tujuan !== 'Ke UKS'))
+  ).length;
+
+  const activeIzinKamarMandiCount = izinKeluarList.filter(
+    ik => ik.status === 'Masih Keluar' && (ik.kategoriTempat === 'Kamar Mandi' || ik.tujuan === 'Ke Kamar Mandi')
+  ).reduce((acc, ik) => acc + (ik.pendamping ? 2 : 1), 0);
 
   const addGuruTidakMasuk = (report: Partial<GuruTidakMasukItem>) => {
     const newItem: GuruTidakMasukItem = {
@@ -538,20 +847,423 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setLaporanPiketList(prev => [newReport, ...prev]);
   };
 
-  const [madrasahInfo, setMadrasahInfo] = useState({
-    nama: "MA PLUS Ma'hadul Muta'allimin",
-    slogan: 'Ikhlas Beramal, Cerdas dalam Tugas, Tertib untuk Madrasah',
-    nsm: '131232050012',
-    npsn: '69982415',
-    akreditasi: 'A (Unggul)',
-    alamat: 'Jl. Pesantren No. 12, Tarogong Kaler, Kabupaten Garut, Jawa Barat',
-    telepon: '(0262) 234567',
-    email: 'info@maplusmahadulmutaallimin.sch.id',
-    website: 'maplusmahadulmutaallimin.sch.id',
-    kepalaMadrasah: 'Drs. H. M. Fauzan, M.Pd.I',
-    nipKepala: '19740510 199903 1 002',
-    logo: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=150'
+  const [madrasahInfo, setMadrasahInfo] = useState(() => {
+    try {
+      const saved = localStorage.getItem('maplus_madrasah_info');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.nsm === '131235210019' && parsed.taglineUtama) return parsed;
+      }
+    } catch {}
+    return INITIAL_MADRASAH_INFO;
   });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('maplus_madrasah_info', JSON.stringify(madrasahInfo));
+    } catch {}
+  }, [madrasahInfo]);
+
+  // 1. Membersihkan seluruh data dummy siswa & log operasional harian (mempertahankan 17 guru resmi)
+  const purgeDummyData = () => {
+    setSiswas([]);
+    setGuruTidakMasukList([]);
+    setMonitoringKBMList([]);
+    setSiswaTidakMasukList([]);
+    setSiswaTerlambatList([]);
+    setIzinKeluarList([]);
+    setTugasKhususList([]);
+    setPelanggaranList([]);
+    setKendalaList([]);
+    setLaporanPiketList([]);
+    setPengumumanList([]);
+    setCutOffPulangAwalList([]);
+    setLocalWisdomList([]);
+    try {
+      localStorage.setItem('maplus_siswa_list', JSON.stringify([]));
+      localStorage.setItem('maplus_guru_tidak_masuk', JSON.stringify([]));
+      localStorage.setItem('maplus_monitoring_kbm', JSON.stringify([]));
+      localStorage.setItem('maplus_siswa_tidak_masuk', JSON.stringify([]));
+      localStorage.setItem('maplus_siswa_terlambat', JSON.stringify([]));
+      localStorage.setItem('maplus_izin_keluar', JSON.stringify([]));
+      localStorage.setItem('maplus_tugas_khusus', JSON.stringify([]));
+      localStorage.setItem('maplus_pelanggaran', JSON.stringify([]));
+      localStorage.setItem('maplus_kendala', JSON.stringify([]));
+      localStorage.setItem('maplus_laporan_piket', JSON.stringify([]));
+      localStorage.setItem('maplus_pengumuman', JSON.stringify([]));
+      localStorage.setItem('maplus_cutoff_list', JSON.stringify([]));
+      localStorage.setItem('maplus_local_wisdom', JSON.stringify([]));
+      localStorage.setItem('maplus_data_version', CURRENT_DATA_VERSION);
+    } catch {}
+    alertSuccess(
+      'Data Dummy Dibersihkan',
+      'Seluruh data dummy (siswa, absensi, pelanggaran, kendala) telah dibersihkan! Data guru tetap dipertahankan dan sistem siap diisi manual.'
+    );
+  };
+
+  // 2. Kosongkan seluruh data guru dan santri agar dapat diinput manual dari nol
+  const kosongkanMasterData = () => {
+    setGurus([]);
+    setSiswas([]);
+    setJadwalKBMList([]);
+    setJadwalPiketList([]);
+    setGuruTidakMasukList([]);
+    setMonitoringKBMList([]);
+    setSiswaTidakMasukList([]);
+    setSiswaTerlambatList([]);
+    setIzinKeluarList([]);
+    setTugasKhususList([]);
+    setPelanggaranList([]);
+    setKendalaList([]);
+    setLaporanPiketList([]);
+    setPengumumanList([]);
+    setCutOffPulangAwalList([]);
+    setLocalWisdomList([]);
+    try {
+      localStorage.setItem('maplus_guru_list', JSON.stringify([]));
+      localStorage.setItem('maplus_siswa_list', JSON.stringify([]));
+      localStorage.setItem('maplus_jadwal_kbm', JSON.stringify([]));
+      localStorage.setItem('maplus_jadwal_piket', JSON.stringify([]));
+      localStorage.setItem('maplus_guru_tidak_masuk', JSON.stringify([]));
+      localStorage.setItem('maplus_monitoring_kbm', JSON.stringify([]));
+      localStorage.setItem('maplus_data_version', CURRENT_DATA_VERSION);
+    } catch {}
+    alertSuccess(
+      'Master Data Dikosongkan',
+      'Daftar guru, santri, dan jadwal telah dikosongkan. Anda dapat mengisinya satu per satu secara manual melalui tombol "+ Tambah".'
+    );
+  };
+
+  // 3. Muat kembali master data resmi MA Plus (17 guru resmi, santri tetap kosong untuk input manual)
+  const muatMasterDataResmi = () => {
+    setGurus(INITIAL_GURU);
+    setSiswas([]);
+    setKelasList(INITIAL_KELAS);
+    setMapelList(INITIAL_MAPEL);
+    setRuangList(INITIAL_RUANG);
+    setJadwalKBMList(INITIAL_JADWAL_KBM);
+    setJadwalPiketList(INITIAL_JADWAL_PIKET);
+    setMadrasahInfo(INITIAL_MADRASAH_INFO);
+    try {
+      localStorage.setItem('maplus_guru_list', JSON.stringify(INITIAL_GURU));
+      localStorage.setItem('maplus_siswa_list', JSON.stringify([]));
+      localStorage.setItem('maplus_kelas_list', JSON.stringify(INITIAL_KELAS));
+      localStorage.setItem('maplus_mapel_list', JSON.stringify(INITIAL_MAPEL));
+      localStorage.setItem('maplus_ruang_list', JSON.stringify(INITIAL_RUANG));
+      localStorage.setItem('maplus_jadwal_kbm', JSON.stringify(INITIAL_JADWAL_KBM));
+      localStorage.setItem('maplus_jadwal_piket', JSON.stringify(INITIAL_JADWAL_PIKET));
+      localStorage.setItem('maplus_madrasah_info', JSON.stringify(INITIAL_MADRASAH_INFO));
+      localStorage.setItem('maplus_data_version', CURRENT_DATA_VERSION);
+    } catch {}
+    alertSuccess(
+      'Data Guru Resmi Dimuat',
+      'Master data 17 guru resmi MA Plus berhasil dimuat. Data santri siap diinput manual dari nol.'
+    );
+  };
+
+  // State Riwayat Pergantian Tahun Ajaran
+  const [riwayatTahunAjaranList, setRiwayatTahunAjaranList] = useState<RiwayatPergantianTahun[]>(() => {
+    try {
+      const saved = localStorage.getItem('maplus_riwayat_tahun_ajaran');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      {
+        id: 'rta-init',
+        tanggal: '15 Juli 2026',
+        waktu: '08:00 WIB',
+        tahunLama: '2025/2026',
+        semesterLama: 'Genap',
+        tahunBaru: '2026/2027',
+        semesterBaru: 'Gasal',
+        totalSiswaLulus: 38,
+        totalSiswaNaikKelas: 106,
+        totalSiswaTinggal: 0,
+        totalSiswaMutasi: 0,
+        totalSiswaSebelum: 144,
+        totalSiswaSesudah: 146,
+        diprosesOleh: 'Administrator (Sistem Kemenag)',
+        catatan: 'Inisialisasi Tahun Ajaran Baru 2026/2027 Semester Gasal MA Plus Ma\'hadul Muta\'allimin Katerban-Ngawi.'
+      }
+    ];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('maplus_riwayat_tahun_ajaran', JSON.stringify(riwayatTahunAjaranList));
+    } catch {}
+  }, [riwayatTahunAjaranList]);
+
+  const tahunAjaranAktif = madrasahInfo.tahunAjaranAktif || '2026/2027';
+  const semesterAktif = (madrasahInfo.semesterAktif || 'Gasal') as 'Gasal' | 'Genap';
+
+  // Pergantian Semester sederhana (Gasal <-> Genap)
+  const gantiSemester = (semesterBaru: 'Gasal' | 'Genap') => {
+    const updated = {
+      ...madrasahInfo,
+      semesterAktif: semesterBaru
+    };
+    setMadrasahInfo(updated);
+    try {
+      localStorage.setItem('maplus_madrasah_info', JSON.stringify(updated));
+    } catch {}
+
+    // Bersihkan presensi harian untuk menyambut semester baru
+    setGuruTidakMasukList([]);
+    setMonitoringKBMList([]);
+    setSiswaTidakMasukList([]);
+    setSiswaTerlambatList([]);
+    setIzinKeluarList([]);
+
+    alertSuccess(
+      'Semester Berhasil Diubah',
+      `Tahun Ajaran ${tahunAjaranAktif} kini aktif pada Semester ${semesterBaru}. Log absensi harian telah disiapkan bersih.`
+    );
+  };
+
+  // Update Tahun Ajaran Manual
+  const updateTahunAjaranManual = (tahunAjaran: string, semester: 'Gasal' | 'Genap') => {
+    const updated = {
+      ...madrasahInfo,
+      tahunAjaranAktif: tahunAjaran,
+      semesterAktif: semester
+    };
+    setMadrasahInfo(updated);
+    try {
+      localStorage.setItem('maplus_madrasah_info', JSON.stringify(updated));
+    } catch {}
+    alertSuccess('Pengaturan Disimpan', `Tahun ajaran aktif diubah ke ${tahunAjaran} (${semester}).`);
+  };
+
+  // Proses Kenaikan Kelas & Kelulusan Siswa
+  const prosesKenaikanKelasDanKelulusan = (params: {
+    tahunAjaranBaru: string;
+    semesterBaru: 'Gasal' | 'Genap';
+    decisions: Record<string, {
+      status: 'Lulus' | 'Naik' | 'Tinggal' | 'Mutasi';
+      kelasTujuan?: string;
+      catatan?: string;
+    }>;
+    resetPresensiHarian?: boolean;
+    resetPoinPelanggaran?: boolean;
+    catatanPergantian?: string;
+  }) => {
+    const {
+      tahunAjaranBaru,
+      semesterBaru,
+      decisions,
+      resetPresensiHarian = true,
+      resetPoinPelanggaran = true,
+      catatanPergantian
+    } = params;
+
+    const tahunLama = madrasahInfo.tahunAjaranAktif || '2026/2027';
+    const semesterLama = madrasahInfo.semesterAktif || 'Genap';
+    const snapshotSiswaJson = JSON.stringify(siswas);
+
+    let countLulus = 0;
+    let countNaik = 0;
+    let countTinggal = 0;
+    let countMutasi = 0;
+
+    const updatedSiswas = siswas.map((s) => {
+      const decision = decisions[s.id];
+      const previousClass = s.kelas;
+      const historyRecord = {
+        tahunAjaran: tahunLama,
+        kelas: previousClass,
+        status: decision?.status || (s.kelas.includes('XII') ? 'Lulus' : 'Naik'),
+        tanggal: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+      };
+      const existingHistory = s.riwayatKelas || [];
+
+      // Jika ada keputusan eksplisit
+      if (decision) {
+        if (decision.status === 'Lulus') {
+          countLulus++;
+          return {
+            ...s,
+            status: 'Lulus',
+            kelas: 'Alumni (Lulus)',
+            tahunLulus: tahunLama,
+            poinPelanggaran: resetPoinPelanggaran ? 0 : s.poinPelanggaran,
+            catatan: decision.catatan || s.catatan || 'Lulus dari MA Plus Ma\'hadul Muta\'allimin',
+            riwayatKelas: [...existingHistory, { ...historyRecord, status: 'Lulus' }]
+          };
+        } else if (decision.status === 'Naik') {
+          countNaik++;
+          const target = decision.kelasTujuan || (
+            s.kelas.includes('XI') ? s.kelas.replace('XI', 'XII') : s.kelas.replace('X', 'XI')
+          );
+          return {
+            ...s,
+            status: 'Aktif',
+            kelas: target,
+            poinPelanggaran: resetPoinPelanggaran ? 0 : s.poinPelanggaran,
+            catatan: decision.catatan || s.catatan,
+            riwayatKelas: [...existingHistory, { ...historyRecord, status: `Naik ke ${target}` }]
+          };
+        } else if (decision.status === 'Tinggal') {
+          countTinggal++;
+          return {
+            ...s,
+            status: 'Aktif',
+            poinPelanggaran: resetPoinPelanggaran ? 0 : s.poinPelanggaran,
+            catatan: `Tinggal kelas di ${s.kelas} pada TA ${tahunAjaranBaru}. ${decision.catatan || ''}`,
+            riwayatKelas: [...existingHistory, { ...historyRecord, status: `Tinggal di ${s.kelas}` }]
+          };
+        } else if (decision.status === 'Mutasi') {
+          countMutasi++;
+          return {
+            ...s,
+            status: 'Mutasi / Keluar',
+            catatan: decision.catatan || 'Mutasi / Pindah sekolah',
+            riwayatKelas: [...existingHistory, { ...historyRecord, status: 'Mutasi' }]
+          };
+        }
+      }
+
+      // Default jika tidak ada override:
+      if (s.kelas.includes('XII')) {
+        countLulus++;
+        return {
+          ...s,
+          status: 'Lulus',
+          kelas: 'Alumni (Lulus)',
+          tahunLulus: tahunLama,
+          poinPelanggaran: resetPoinPelanggaran ? 0 : s.poinPelanggaran,
+          riwayatKelas: [...existingHistory, { ...historyRecord, status: 'Lulus' }]
+        };
+      } else if (s.kelas.includes('XI')) {
+        countNaik++;
+        const target = s.kelas.replace('XI', 'XII');
+        return {
+          ...s,
+          status: 'Aktif',
+          kelas: target,
+          poinPelanggaran: resetPoinPelanggaran ? 0 : s.poinPelanggaran,
+          riwayatKelas: [...existingHistory, { ...historyRecord, status: `Naik ke ${target}` }]
+        };
+      } else if (s.kelas.includes('X')) {
+        countNaik++;
+        const target = s.kelas.replace('X', 'XI');
+        return {
+          ...s,
+          status: 'Aktif',
+          kelas: target,
+          poinPelanggaran: resetPoinPelanggaran ? 0 : s.poinPelanggaran,
+          riwayatKelas: [...existingHistory, { ...historyRecord, status: `Naik ke ${target}` }]
+        };
+      }
+
+      return s;
+    });
+
+    setSiswas(updatedSiswas);
+    try {
+      localStorage.setItem('maplus_siswa_list', JSON.stringify(updatedSiswas));
+    } catch {}
+
+    const updatedInfo = {
+      ...madrasahInfo,
+      tahunAjaranAktif: tahunAjaranBaru,
+      semesterAktif: semesterBaru
+    };
+    setMadrasahInfo(updatedInfo);
+    try {
+      localStorage.setItem('maplus_madrasah_info', JSON.stringify(updatedInfo));
+    } catch {}
+
+    // Reset data transaksi operasional jika dicentang
+    if (resetPresensiHarian) {
+      setGuruTidakMasukList([]);
+      setMonitoringKBMList([]);
+      setSiswaTidakMasukList([]);
+      setSiswaTerlambatList([]);
+      setIzinKeluarList([]);
+      setTugasKhususList([]);
+      setPelanggaranList([]);
+      setKendalaList([]);
+      setLaporanPiketList([]);
+      try {
+        localStorage.setItem('maplus_guru_tidak_masuk', JSON.stringify([]));
+        localStorage.setItem('maplus_monitoring_kbm', JSON.stringify([]));
+        localStorage.setItem('maplus_siswa_tidak_masuk', JSON.stringify([]));
+        localStorage.setItem('maplus_siswa_terlambat', JSON.stringify([]));
+        localStorage.setItem('maplus_izin_keluar', JSON.stringify([]));
+        localStorage.setItem('maplus_tugas_khusus', JSON.stringify([]));
+        localStorage.setItem('maplus_pelanggaran', JSON.stringify([]));
+        localStorage.setItem('maplus_kendala', JSON.stringify([]));
+        localStorage.setItem('maplus_laporan_piket', JSON.stringify([]));
+      } catch {}
+    }
+
+    const historyRecord: RiwayatPergantianTahun = {
+      id: `rta-${Date.now()}`,
+      tanggal: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+      waktu: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+      tahunLama,
+      semesterLama,
+      tahunBaru: tahunAjaranBaru,
+      semesterBaru,
+      totalSiswaLulus: countLulus,
+      totalSiswaNaikKelas: countNaik,
+      totalSiswaTinggal: countTinggal,
+      totalSiswaMutasi: countMutasi,
+      totalSiswaSebelum: siswas.length,
+      totalSiswaSesudah: updatedSiswas.filter(s => s.status === 'Aktif').length,
+      diprosesOleh: currentUser?.namaLengkap || 'Administrator',
+      catatan: catatanPergantian || `Pergantian tahun ajaran resmi dari ${tahunLama} ke ${tahunAjaranBaru} (${semesterBaru}).`,
+      snapshotSiswaJson
+    };
+
+    setRiwayatTahunAjaranList(prev => [historyRecord, ...prev]);
+
+    return {
+      success: true,
+      message: `Pergantian Tahun Ajaran ke ${tahunAjaranBaru} (${semesterBaru}) berhasil! ${countLulus} Siswa Lulus, ${countNaik} Siswa Naik Kelas.`,
+      summary: {
+        tahunBaru: tahunAjaranBaru,
+        semesterBaru,
+        countLulus,
+        countNaik,
+        countTinggal,
+        countMutasi,
+        totalAktif: updatedSiswas.filter(s => s.status === 'Aktif').length
+      }
+    };
+  };
+
+  // Rollback Pergantian Tahun
+  const rollbackPergantianTahun = (historyId: string) => {
+    const record = riwayatTahunAjaranList.find(r => r.id === historyId);
+    if (!record || !record.snapshotSiswaJson) {
+      alertError('Gagal Rollback', 'Data snapshot siswa untuk riwayat ini tidak tersedia.');
+      return { success: false, message: 'Snapshot tidak tersedia' };
+    }
+
+    try {
+      const restored = JSON.parse(record.snapshotSiswaJson);
+      setSiswas(restored);
+      localStorage.setItem('maplus_siswa_list', JSON.stringify(restored));
+
+      const revertedInfo = {
+        ...madrasahInfo,
+        tahunAjaranAktif: record.tahunLama,
+        semesterAktif: record.semesterLama
+      };
+      setMadrasahInfo(revertedInfo);
+      localStorage.setItem('maplus_madrasah_info', JSON.stringify(revertedInfo));
+
+      setRiwayatTahunAjaranList(prev => prev.filter(r => r.id !== historyId));
+
+      alertSuccess('Rollback Berhasil', `Data santri berhasil dipulihkan ke kondisi Tahun Ajaran ${record.tahunLama} (${record.semesterLama}).`);
+      return { success: true, message: 'Berhasil dikembalikan' };
+    } catch (e: any) {
+      alertError('Gagal Rollback', e.message || 'Terjadi kesalahan saat memulihkan data.');
+      return { success: false, message: e.message };
+    }
+  };
 
   const addGuru = (guru: any) => setGurus(prev => [guru, ...prev]);
   const updateGuru = (id: string, guru: any) =>
@@ -977,6 +1689,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveTabSub,
         isPublicReportOpen,
         setIsPublicReportOpen,
+        isMobileSidebarOpen,
+        setIsMobileSidebarOpen,
+        toggleMobileSidebar,
         gurus,
         guruList: gurus,
         setGurus,
@@ -1062,6 +1777,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addJadwalPiket,
         updateJadwalPiket,
         deleteJadwalPiket,
+        purgeDummyData,
+        kosongkanMasterData,
+        muatMasterDataResmi,
         addUser,
         updateUser,
         deleteUser,
@@ -1071,6 +1789,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateKendalaStatus,
         updateLaporanStatus,
         addPengumuman,
+        cutOffPulangAwalList,
+        setCutOffPulangAwalList,
+        tambahCutOffPulangAwal,
+        batalkanCutOffPulangAwal,
+        localWisdomList,
+        setLocalWisdomList,
+        updateLocalWisdomStatus,
+        generateWaTextLocalWisdom,
+        masterKategoriList,
+        setMasterKategoriList,
+        tambahMasterKategori,
+        editMasterKategori,
+        hapusMasterKategori,
+        tindakSiswaTerlambat,
+        catatSiswaTidakMasukJam1,
+        activeIzinLuarCount,
+        activeIzinKamarMandiCount,
+        maxKuotaLuarLingkungan,
+        maxKuotaKamarMandi,
         popupConfig,
         showPopup,
         closePopup,
@@ -1079,7 +1816,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         alertError,
         alertInfo,
         login,
-        logout
+        logout,
+        tahunAjaranAktif,
+        semesterAktif,
+        riwayatTahunAjaranList,
+        gantiSemester,
+        updateTahunAjaranManual,
+        prosesKenaikanKelasDanKelulusan,
+        rollbackPergantianTahun
       }}
     >
       {children}

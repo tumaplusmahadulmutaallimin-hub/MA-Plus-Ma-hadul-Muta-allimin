@@ -17,22 +17,28 @@ import {
   Check,
   Award,
   AlertTriangle,
-  Camera
+  Camera,
+  ShieldCheck,
+  RotateCcw
 } from 'lucide-react';
 import { ImageUploader } from '../common/ImageUploader';
+import { KartuKendaliModal } from '../common/KartuKendaliModal';
 import { exportToXLSX, readXLSXFile, downloadSiswaTemplateXLSX } from '../../utils/excelHelper';
 
 export const DataSiswaView: React.FC = () => {
-  const { siswaList, kelasList, addSiswa, updateSiswa, deleteSiswa, confirmAction, alertSuccess, alertInfo } = useApp();
+  const { siswaList, kelasList, addSiswa, updateSiswa, deleteSiswa, confirmAction, alertSuccess, alertInfo, setActiveView } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [kelasFilter, setKelasFilter] = useState<string>('Semua');
   const [genderFilter, setGenderFilter] = useState<string>('Semua');
   const [mbgFilter, setMbgFilter] = useState<string>('Semua');
+  const [statusFilter, setStatusFilter] = useState<string>('Semua');
 
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showKartuKendaliModal, setShowKartuKendaliModal] = useState(false);
+  const [kartuKendaliSiswa, setKartuKendaliSiswa] = useState<Siswa | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [importFileName, setImportFileName] = useState<string | null>(null);
   const [importedRows, setImportedRows] = useState<any[]>([]);
@@ -44,7 +50,7 @@ export const DataSiswaView: React.FC = () => {
     nis: '',
     nisn: '',
     nama: '',
-    kelas: 'X - IPA 1',
+    kelas: 'X A',
     jenisKelamin: 'Laki-laki',
     noHpWali: '',
     namaWali: '',
@@ -72,7 +78,15 @@ export const DataSiswaView: React.FC = () => {
         : mbgFilter === 'MBG'
         ? !!s.penerimaMBG
         : !s.penerimaMBG;
-    return matchSearch && matchKelas && matchGender && matchMbg;
+    const matchStatus =
+      statusFilter === 'Semua'
+        ? true
+        : statusFilter === 'Aktif'
+        ? (s.status === 'Aktif' || !s.status)
+        : statusFilter === 'Lulus'
+        ? (s.status === 'Lulus' || (s.kelas && s.kelas.includes('Alumni')))
+        : s.status === statusFilter;
+    return matchSearch && matchKelas && matchGender && matchMbg && matchStatus;
   });
 
   const totalSiswa = siswaList.length;
@@ -358,9 +372,31 @@ export const DataSiswaView: React.FC = () => {
             <option value="MBG">Penerima MBG</option>
             <option value="Non-MBG">Bukan MBG</option>
           </select>
+
+          {/* Status Siswa */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-blue-500 font-medium"
+          >
+            <option value="Semua">Semua Status</option>
+            <option value="Aktif">Santri Aktif</option>
+            <option value="Lulus">Lulus (Alumni)</option>
+            <option value="Tinggal">Tinggal Kelas</option>
+            <option value="Mutasi">Mutasi / Pindah</option>
+          </select>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveView('pergantian-tahun')}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-bold text-white bg-gradient-to-r from-emerald-700 to-teal-800 hover:from-emerald-800 hover:to-teal-900 rounded-lg transition-all shadow-xs cursor-pointer"
+            title="Kelola Pergantian Tahun Ajaran, Kenaikan Kelas & Kelulusan Siswa"
+          >
+            <RotateCcw className="w-4 h-4 text-emerald-200" />
+            <span>Kenaikan &amp; Kelulusan</span>
+          </button>
           <button
             onClick={() => setShowImportModal(true)}
             className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
@@ -369,11 +405,22 @@ export const DataSiswaView: React.FC = () => {
             Import Siswa
           </button>
           <button
+            onClick={() => {
+              setKartuKendaliSiswa(filteredSiswa[0] || siswaList[0] || null);
+              setShowKartuKendaliModal(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg transition-colors cursor-pointer"
+            title="Buka & Cetak Kartu Kendali Santri Berkop Resmi"
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-700" />
+            Kartu Kendali
+          </button>
+          <button
             onClick={handleExportXLSX}
             className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors cursor-pointer"
           >
             <Download className="w-4 h-4" />
-            Export Excel (.xlsx)
+            Export Excel
           </button>
           <button
             onClick={handleOpenAdd}
@@ -456,12 +503,30 @@ export const DataSiswaView: React.FC = () => {
                       </span>
                     </td>
                   <td className="py-3.5 px-4 text-center">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                      {siswa.status}
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                      siswa.status === 'Lulus'
+                        ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                        : siswa.status === 'Tinggal'
+                        ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                        : siswa.status === 'Mutasi / Keluar' || siswa.status === 'Mutasi'
+                        ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                        : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                    }`}>
+                      {siswa.status || 'Aktif'}
                     </span>
                   </td>
                   <td className="py-3.5 px-4 text-center">
                     <div className="flex items-center justify-center gap-1.5">
+                      <button
+                        onClick={() => {
+                          setKartuKendaliSiswa(siswa);
+                          setShowKartuKendaliModal(true);
+                        }}
+                        title={`Cetak Kartu Kendali ${siswa.nama}`}
+                        className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded cursor-pointer"
+                      >
+                        <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                      </button>
                       <button
                         onClick={() => setSelectedSiswa(siswa)}
                         title="Lihat Detail Siswa"
@@ -499,6 +564,41 @@ export const DataSiswaView: React.FC = () => {
                 </tr>
               );
             })}
+            {filteredSiswa.length === 0 && (
+              <tr>
+                <td colSpan={9} className="py-12 px-4 text-center">
+                  <div className="max-w-md mx-auto flex flex-col items-center justify-center text-slate-500">
+                    <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3 border border-emerald-200 shadow-xs">
+                      <GraduationCap className="w-7 h-7" />
+                    </div>
+                    <h4 className="text-base font-bold text-slate-800 mb-1">
+                      Belum Ada Data Santri / Peserta Didik
+                    </h4>
+                    <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                      Seluruh data dummy telah dibersihkan. Sistem siap untuk penginputan mandiri secara aman melalui formulir manual atau impor Excel.
+                    </p>
+                    <div className="flex items-center gap-2.5 flex-wrap justify-center">
+                      <button
+                        type="button"
+                        onClick={handleOpenAdd}
+                        className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl shadow-xs transition-colors cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Tambah Santri Pertama
+                      </button>
+                      <button
+                        type="button"
+                        onClick={downloadSiswaTemplateXLSX}
+                        className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-colors cursor-pointer"
+                      >
+                        <Download className="w-4 h-4" />
+                        Unduh Template Excel
+                      </button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            )}
             </tbody>
           </table>
         </div>
@@ -781,22 +881,34 @@ export const DataSiswaView: React.FC = () => {
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-200 flex gap-2">
+            <div className="pt-4 border-t border-slate-200 flex flex-col gap-2">
               <button
                 onClick={() => {
-                  setSelectedSiswa(null);
-                  handleOpenEdit(selectedSiswa);
+                  setKartuKendaliSiswa(selectedSiswa);
+                  setShowKartuKendaliModal(true);
                 }}
-                className="flex-1 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-sm font-semibold cursor-pointer"
+                className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-xs"
               >
-                Edit Data
+                <ShieldCheck className="w-4 h-4 text-amber-300" />
+                <span>Cetak Kartu Kendali Santri</span>
               </button>
-              <button
-                onClick={() => setSelectedSiswa(null)}
-                className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm hover:bg-slate-50 cursor-pointer"
-              >
-                Tutup
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setSelectedSiswa(null);
+                    handleOpenEdit(selectedSiswa);
+                  }}
+                  className="flex-1 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-sm font-semibold cursor-pointer"
+                >
+                  Edit Data
+                </button>
+                <button
+                  onClick={() => setSelectedSiswa(null)}
+                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm hover:bg-slate-50 cursor-pointer"
+                >
+                  Tutup
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -935,6 +1047,13 @@ export const DataSiswaView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal Kartu Kendali Resmi Santri */}
+      <KartuKendaliModal
+        isOpen={showKartuKendaliModal}
+        initialSiswa={kartuKendaliSiswa}
+        onClose={() => setShowKartuKendaliModal(false)}
+      />
     </div>
   );
 };

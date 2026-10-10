@@ -11,8 +11,10 @@ import {
   FileCheck,
   AlertCircle,
   Eye,
-  Check
+  Check,
+  X
 } from 'lucide-react';
+import { MadrasahLogo } from '../common/MadrasahLogo';
 
 export const KirimLaporanKepalaView: React.FC = () => {
   const { currentUser, submitPiketReportToKepala, setActiveView, confirmAction, alertSuccess } = useApp();
@@ -20,6 +22,7 @@ export const KirimLaporanKepalaView: React.FC = () => {
     'Kegiatan KBM berjalan dengan tertib. Terdapat beberapa guru yang tidak masuk dan telah diberikan guru pengganti. Beberapa siswa terlambat dan telah diberikan pembinaan. Terdapat 2 kendala fasilitas yang masih dalam proses tindak lanjut.'
   );
   const [isSent, setIsSent] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   const handleSendReport = () => {
     confirmAction({
@@ -257,11 +260,13 @@ export const KirimLaporanKepalaView: React.FC = () => {
             </span>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => window.print()}
-                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500"
-                title="Cetak"
+                type="button"
+                onClick={() => setShowPrintModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                title="Cetak Laporan Resmi Berkop Madrasah"
               >
-                <Printer className="w-4 h-4" />
+                <Printer className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Cetak / PDF</span>
               </button>
             </div>
           </div>
@@ -370,6 +375,160 @@ export const KirimLaporanKepalaView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* MODAL CETAK RESMI BERKOP SURAT MADRASAH */}
+      {showPrintModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95 max-h-[95vh] overflow-y-auto">
+            {/* Top Action Bar */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 no-print">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                  <Printer className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Format Cetak Laporan Resmi</h3>
+                  <p className="text-[11px] text-slate-500">Berkop Surat Resmi MA PLUS Ma'hadul Muta'allimin</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Cetak / Simpan PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPrintModal(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Official Madrasah Letter Body */}
+            <div className="bg-white p-7 border border-slate-300 rounded-2xl space-y-4 text-slate-900 font-sans">
+              {/* Kop Surat Resmi */}
+              <div className="text-center pb-3 border-b-2 border-slate-900 space-y-0.5">
+                <div className="flex items-center justify-center gap-4">
+                  <div className="w-16 h-16 shrink-0 flex items-center justify-center">
+                    <MadrasahLogo size="xl" />
+                  </div>
+                  <div>
+                    <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
+                      YAYASAN PONDOK PESANTREN MA'HADUL MUTA'ALLIMIN
+                    </h2>
+                    <h1 className="text-sm sm:text-base font-black uppercase tracking-tight text-emerald-950">
+                      MADRASAH ALIYAH PLUS MA'HADUL MUTA'ALLIMIN KATERBAN
+                    </h1>
+                    <p className="text-[10px] font-bold text-amber-800 uppercase">
+                      MADRASAH THREE IN ONE (RELIGIUS, SAINS AND SKILL) • BERBASIS PONDOK PESANTREN
+                    </p>
+                    <p className="text-[10px] text-slate-600 font-mono">
+                      NSM: 131235210019 · NPSN: 69982415 · Status Akreditasi: A (Unggul)
+                    </p>
+                    <p className="text-[9px] text-slate-500">
+                      Katerban, Kec. Paron, Kab. Ngawi, Jawa Timur 63253 · Email: tumaplusmahadulmutaallimin@gmail.com
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Title & Document Number */}
+              <div className="text-center pt-1 space-y-0.5">
+                <h3 className="text-xs font-black uppercase underline tracking-wider">
+                  BERITA ACARA LAPORAN GURU PIKET HARIAN
+                </h3>
+                <p className="text-[10px] text-slate-500 font-mono">
+                  Nomor: BA.PIKET/MAPLUS/2026/09/{Date.now().toString().slice(-4)}
+                </p>
+              </div>
+
+              {/* Identitas Laporan */}
+              <div className="text-xs space-y-1.5 border border-slate-200 rounded-xl p-3 bg-slate-50/50">
+                <div className="grid grid-cols-3 gap-y-1 text-xs">
+                  <span className="text-slate-500">Hari / Tanggal</span>
+                  <span className="col-span-2 font-bold text-slate-900">: Jum'at, 4 September 2026</span>
+
+                  <span className="text-slate-500">Koordinator Piket</span>
+                  <span className="col-span-2 font-bold text-emerald-900">: {currentUser.namaLengkap}</span>
+
+                  <span className="text-slate-500">Waktu Tugas</span>
+                  <span className="col-span-2 font-mono">: 06:45 - 14:30 WIB</span>
+
+                  <span className="text-slate-500">Semester / Tahun Ajaran</span>
+                  <span className="col-span-2">: Semester Genap 2025/2026</span>
+                </div>
+              </div>
+
+              {/* Tabel Ringkasan Aktivitas Piket */}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider mb-1.5">REKAPITULASI KEJADIAN &amp; DISIPLIN KBM</p>
+                <table className="w-full text-left border border-slate-300 text-xs">
+                  <thead>
+                    <tr className="bg-slate-100 border-b border-slate-300 font-bold">
+                      <th className="p-1.5 text-center w-8">No</th>
+                      <th className="p-1.5">Uraian Aktivitas Penugasan</th>
+                      <th className="p-1.5 text-center">Status / Satuan</th>
+                      <th className="p-1.5 text-right w-24">Jumlah Riil</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 font-mono">
+                    <tr><td className="p-1.5 text-center">1</td><td className="p-1.5 font-sans">Ruang KBM dimonitor (Jam Ke-1 s.d. 8)</td><td className="p-1.5 text-center text-slate-600 font-sans">Rombel</td><td className="p-1.5 text-right font-bold text-emerald-800">12 / 12</td></tr>
+                    <tr><td className="p-1.5 text-center">2</td><td className="p-1.5 font-sans">Guru Izin / Sakit Terdata</td><td className="p-1.5 text-center text-slate-600 font-sans">Orang</td><td className="p-1.5 text-right font-bold">3</td></tr>
+                    <tr><td className="p-1.5 text-center">3</td><td className="p-1.5 font-sans">Penetapan Guru Pengganti (Inval ⭐)</td><td className="p-1.5 text-center text-slate-600 font-sans">Kelas</td><td className="p-1.5 text-right font-bold text-blue-700">2</td></tr>
+                    <tr><td className="p-1.5 text-center">4</td><td className="p-1.5 font-sans">Santri Tidak Masuk (S/I/A)</td><td className="p-1.5 text-center text-slate-600 font-sans">Santri</td><td className="p-1.5 text-right font-bold text-rose-700">12</td></tr>
+                    <tr><td className="p-1.5 text-center">5</td><td className="p-1.5 font-sans">Santri Terlambat Masuk</td><td className="p-1.5 text-center text-slate-600 font-sans">Santri</td><td className="p-1.5 text-right font-bold text-amber-700">8</td></tr>
+                    <tr><td className="p-1.5 text-center">6</td><td className="p-1.5 font-sans">Surat Izin Keluar Kampus Diterbitkan</td><td className="p-1.5 text-center text-slate-600 font-sans">Berkas</td><td className="p-1.5 text-right font-bold">6</td></tr>
+                    <tr><td className="p-1.5 text-center">7</td><td className="p-1.5 font-sans">Porsi Makan Bergizi Gratis (MBG) Didistribusikan</td><td className="p-1.5 text-center text-slate-600 font-sans">Porsi Katering</td><td className="p-1.5 text-right font-bold text-emerald-800">306</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Catatan Piket */}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider mb-1">CATATAN KHUSUS GURU PIKET:</p>
+                <p className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 italic text-xs leading-relaxed">
+                  "{catatan}"
+                </p>
+              </div>
+
+              {/* Tanda Tangan */}
+              <div className="pt-4 grid grid-cols-2 gap-4 text-center text-xs">
+                <div>
+                  <p className="text-[11px] text-slate-600">Mengetahui &amp; Menyetujui,</p>
+                  <p className="font-bold text-slate-800">Kepala Madrasah</p>
+                  <div className="h-12 flex items-center justify-center font-serif italic text-slate-400 text-[11px]">
+                    (Tanda Tangan &amp; Stempel Digital)
+                  </div>
+                  <p className="font-extrabold underline text-slate-900">Dr. H. Syahrul Mushtofa, M.Pd</p>
+                  <p className="text-[10px] text-slate-500">NIP. 197405122003121002</p>
+                </div>
+
+                <div>
+                  <p className="text-[11px] text-slate-600">Bantul, 4 September 2026</p>
+                  <p className="font-bold text-emerald-950">Koordinator Guru Piket</p>
+                  <div className="h-12 flex items-center justify-center font-serif italic text-emerald-800 font-bold text-sm">
+                    {currentUser.namaLengkap}
+                  </div>
+                  <p className="font-extrabold underline text-slate-900">{currentUser.namaLengkap}</p>
+                  <p className="text-[10px] text-slate-500">NIP. 198507202010011015</p>
+                </div>
+              </div>
+
+              <div className="pt-2 text-center border-t border-slate-200">
+                <p className="text-[10px] font-serif italic text-slate-500">
+                  "Ikhlas Beramal, Cerdas dalam Tugas, Tertib untuk Madrasah MA PLUS"
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

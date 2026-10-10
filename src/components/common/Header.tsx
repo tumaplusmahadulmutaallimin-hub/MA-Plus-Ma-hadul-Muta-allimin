@@ -15,8 +15,15 @@ import {
   Sparkles,
   Printer,
   ChevronDown,
-  LogOut
+  LogOut,
+  Smartphone,
+  Download,
+  X,
+  HelpCircle,
+  Menu
 } from 'lucide-react';
+import { PanduanOperasionalModal } from './PanduanOperasionalModal';
+import { MadrasahLogo } from './MadrasahLogo';
 
 interface HeaderProps {
   title?: string;
@@ -31,12 +38,23 @@ export const Header: React.FC<HeaderProps> = ({
   icon,
   breadcrumbs
 }) => {
-  const { currentUser, activeView, switchRole, setIsLoggedIn } = useApp();
+  const {
+    currentUser,
+    activeView,
+    setActiveView,
+    switchRole,
+    setIsLoggedIn,
+    tahunAjaranAktif,
+    semesterAktif,
+    toggleMobileSidebar
+  } = useApp();
 
   const displayTitle =
     title ||
     (activeView === 'dashboard'
       ? 'Dashboard'
+      : activeView === 'pergantian-tahun'
+      ? 'Tahun Ajaran & Kenaikan Kelas'
       : activeView
           .split('-')
           .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
@@ -46,6 +64,29 @@ export const Header: React.FC<HeaderProps> = ({
   const [time, setTime] = useState<string>('09:15:22');
   const [showBellDropdown, setShowBellDropdown] = useState(false);
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
+  const [showInstallModal, setShowInstallModal] = useState(false);
+  const [showPanduanModal, setShowPanduanModal] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+  }, []);
+
+  const handleTriggerInstall = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(() => {
+        setDeferredPrompt(null);
+      });
+    } else {
+      setShowInstallModal(true);
+    }
+  };
 
   useEffect(() => {
     let seconds = 22;
@@ -102,11 +143,11 @@ export const Header: React.FC<HeaderProps> = ({
     '"Ikhlas Beramal, Cerdas dalam Tugas, Tertib untuk Madrasah"';
 
   return (
-    <header className="bg-white border-b border-slate-200/90 px-6 py-3.5 sticky top-0 z-30 shadow-xs">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
+    <header className="bg-white border-b border-slate-200/90 px-4 sm:px-6 py-2.5 sm:py-3.5 sticky top-0 z-30 shadow-xs">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         {/* Left: Breadcrumbs & Title */}
         <div className="flex flex-col gap-0.5">
-          <nav className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
+          <nav className="hidden sm:flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
             {displayBreadcrumbs.map((crumb, idx) => (
               <React.Fragment key={idx}>
                 {idx > 0 && <ChevronRight className="w-3 h-3 text-slate-300" />}
@@ -117,26 +158,83 @@ export const Header: React.FC<HeaderProps> = ({
             ))}
           </nav>
 
-          <div className="flex items-center gap-3 mt-0.5">
-            {icon ? (
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100/80 flex items-center justify-center shadow-2xs">
-                {icon}
-              </div>
-            ) : null}
+          <div className="flex items-center gap-2.5 sm:gap-3 mt-0.5">
+            {/* Tombol Garis Tiga Navigasi Menu (Buka Menu Navigasi di mode apa saja) */}
+            <button
+              type="button"
+              onClick={toggleMobileSidebar}
+              className="flex items-center gap-1.5 px-2.5 py-2 sm:px-3 sm:py-2 rounded-xl bg-gradient-to-r from-emerald-700 to-teal-800 text-white hover:from-emerald-800 hover:to-teal-900 border border-emerald-600 shadow-sm transition-all shrink-0 cursor-pointer active:scale-95 group"
+              aria-label="Buka Menu Navigasi"
+              title="Menu Navigasi (Tanda Garis Tiga - Klik untuk Buka Menu)"
+            >
+              <Menu className="w-5 h-5 text-amber-300 group-hover:rotate-6 transition-transform" />
+              <span className="text-xs font-bold text-amber-200">Menu</span>
+            </button>
+
+            {/* Official Madrasah Logo */}
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white border border-emerald-500/40 p-0.5 flex items-center justify-center shadow-xs shrink-0">
+              <MadrasahLogo size="md" />
+            </div>
+
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">{displayTitle}</h1>
                 <span className="hidden sm:inline-block font-arabic text-xs text-emerald-800/80 font-normal">
                   بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
                 </span>
+                <span className="inline-flex items-center gap-1 text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  MADRASAH THREE IN ONE (RELIGIUS, SAINS AND SKILL)
+                </span>
               </div>
-              {subtitle && <p className="text-xs text-slate-500 font-medium">{subtitle}</p>}
+              <div className="flex items-center gap-2 flex-wrap">
+                {subtitle ? (
+                  <p className="text-xs text-slate-500 font-medium">
+                    {subtitle} • <span className="text-amber-800 font-bold">MADRASAH BERBASIS PONDOK PESANTREN</span>
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-amber-800 font-bold tracking-tight">
+                    MADRASAH BERBASIS PONDOK PESANTREN • MA PLUS MA'HADUL MUTA'ALLIMIN KATERBAN-NGAWI
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Right: Date/Clock Card, Quote Card, Notifications, User */}
         <div className="flex items-center flex-wrap gap-2.5">
+          {/* Active Academic Year Badge */}
+          <button
+            type="button"
+            onClick={() => {
+              if (currentUser?.role === 'Administrator' || currentUser?.role === 'Kepala Madrasah') {
+                setActiveView('pergantian-tahun');
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-900/90 hover:bg-emerald-900 text-white border border-emerald-600/40 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer group"
+            title="Tahun Pelajaran Aktif (Klik untuk Kelola Kenaikan Kelas & Kelulusan)"
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-400 group-hover:scale-125 transition-transform"></span>
+            <span className="font-mono text-emerald-100 font-extrabold">{tahunAjaranAktif}</span>
+            <span className="text-[9.5px] bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded font-black">
+              {semesterAktif}
+            </span>
+          </button>
+
+          {/* Menu Panduan Operasional Button in Top Navigation */}
+          <button
+            type="button"
+            onClick={() => setShowPanduanModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer border border-emerald-500/30 group"
+            title="Buka Buku Panduan Operasional Seluruh Menu & Langkah"
+          >
+            <HelpCircle className="w-4 h-4 text-amber-300 group-hover:rotate-12 transition-transform" />
+            <span className="font-extrabold tracking-wide">Panduan Operasional</span>
+            <span className="text-[9px] bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded font-black hidden sm:inline">
+              SOP
+            </span>
+          </button>
           {/* Live Date and Digital Clock with Hijri Date */}
           <div className="flex items-center gap-2.5 px-3.5 py-1.5 bg-gradient-to-r from-emerald-50/90 via-teal-50/50 to-amber-50/60 border border-emerald-200/70 rounded-xl shadow-2xs">
             <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-xs">
@@ -162,6 +260,17 @@ export const Header: React.FC<HeaderProps> = ({
               {currentQuote}
             </p>
           </div>
+
+          {/* PWA Install Button */}
+          <button
+            type="button"
+            onClick={handleTriggerInstall}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+            title="Pasang Aplikasi di Layar Utama HP / Komputer"
+          >
+            <Smartphone className="w-3.5 h-3.5 text-emerald-700" />
+            <span>Pasang Aplikasi</span>
+          </button>
 
           {/* Notification Bell */}
           <div className="relative">
@@ -289,6 +398,72 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
       </div>
+
+      {/* PWA INSTALLATION MODAL */}
+      {showInstallModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                  <Smartphone className="w-5 h-5 text-emerald-700" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Pasang di Layar Utama HP</h3>
+                  <p className="text-[11px] text-slate-500">Progressive Web App (PWA)</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowInstallModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="text-xs text-slate-600 space-y-3 leading-relaxed">
+              <p>
+                Aplikasi <strong>Sistem Guru Piket MA PLUS</strong> dapat diinstal langsung ke layar beranda smartphone Android atau iPhone Anda agar dapat diakses dengan cepat dan nyaman saat patroli keliling madrasah.
+              </p>
+
+              <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100 space-y-2 text-emerald-950">
+                <p className="font-bold text-emerald-900">Petunjuk untuk Pengguna Android (Chrome):</p>
+                <ol className="list-decimal list-inside space-y-1 text-[11px] text-emerald-800">
+                  <li>Ketuk tombol menu titik tiga (<strong>⋮</strong>) di pojok kanan atas browser.</li>
+                  <li>Pilih opsi <strong>"Instal aplikasi"</strong> atau <strong>"Tambahkan ke Layar Utama"</strong>.</li>
+                  <li>Ketuk <strong>"Instal"</strong>. Ikon aplikasi akan muncul di layar ponsel Anda.</li>
+                </ol>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2 text-slate-800">
+                <p className="font-bold text-slate-900">Petunjuk untuk Pengguna iPhone (Safari):</p>
+                <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-600">
+                  <li>Ketuk tombol <strong>Share</strong> (ikon kotak dengan panah ke atas) di bagian bawah.</li>
+                  <li>Gulir ke bawah dan pilih <strong>"Add to Home Screen"</strong> (Tambahkan ke Layar Utama).</li>
+                  <li>Ketuk <strong>"Add"</strong> (Tambah) di pojok kanan atas.</li>
+                </ol>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowInstallModal(false)}
+                className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+              >
+                Mengerti &amp; Siap Digunakan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PANDUAN OPERASIONAL MODAL */}
+      <PanduanOperasionalModal
+        isOpen={showPanduanModal}
+        onClose={() => setShowPanduanModal(false)}
+      />
     </header>
   );
 };

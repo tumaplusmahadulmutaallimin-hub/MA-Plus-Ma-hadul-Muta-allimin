@@ -172,15 +172,25 @@ export const KonfirmasiKehadiranGuruMandiriView: React.FC<KonfirmasiKehadiranGur
         <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-4 sm:p-6 mb-4 shadow-xl backdrop-blur-md">
           <div className="flex items-center justify-between border-b border-slate-700/60 pb-4 mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white shadow-md">
-                <School className="w-6 h-6" />
+              <div className="w-12 h-12 rounded-xl bg-white p-1 flex items-center justify-center shadow-md shrink-0 border border-emerald-400/30">
+                <img
+                  src="/src/assets/images/MAPLUSLOGO.jpg.jpeg"
+                  alt="Logo Resmi MA PLUS"
+                  className="w-full h-full object-contain rounded-lg"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/src/assets/images/madrasah_logo_1791093665342.jpg';
+                  }}
+                />
               </div>
               <div>
                 <h1 className="text-base sm:text-lg font-bold text-white tracking-wide">
                   MA PLUS MA'HADUL MUTA'ALLIMIN
                 </h1>
-                <p className="text-xs text-emerald-400 font-medium">
-                  Portal Konfirmasi Kehadiran Guru KBM
+                <p className="text-[11px] text-amber-300 font-extrabold uppercase tracking-tight">
+                  MADRASAH THREE IN ONE (RELIGIUS, SAINS AND SKILL)
+                </p>
+                <p className="text-[10px] text-emerald-400 font-semibold">
+                  MADRASAH BERBASIS PONDOK PESANTREN · Portal Konfirmasi Mandiri Guru
                 </p>
               </div>
             </div>

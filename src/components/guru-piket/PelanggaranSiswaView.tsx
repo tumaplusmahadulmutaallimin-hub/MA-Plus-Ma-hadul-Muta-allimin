@@ -14,15 +14,18 @@ import {
   X,
   Check,
   Upload,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ShieldCheck
 } from 'lucide-react';
 import { exportToXLSX } from '../../utils/excelHelper';
 import { PelanggaranSiswaData } from '../../types';
 import { ImageUploader } from '../common/ImageUploader';
+import { KartuKendaliModal } from '../common/KartuKendaliModal';
 
 export const PelanggaranSiswaView: React.FC = () => {
   const { pelanggaranList, addPelanggaran, setPelanggaranList, siswas, confirmAction, alertSuccess } = useApp();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showKartuKendaliModal, setShowKartuKendaliModal] = useState(false);
   const [selectedPelanggaran, setSelectedPelanggaran] = useState<PelanggaranSiswaData>(pelanggaranList[0]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterKelas, setFilterKelas] = useState('Semua');
@@ -201,6 +204,16 @@ export const PelanggaranSiswaView: React.FC = () => {
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Export .xlsx</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowKartuKendaliModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+                title="Buka Kartu Kendali Santri Berkop Resmi Madrasah"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-300" />
+                <span>Kartu Kendali</span>
               </button>
             </div>
 
@@ -568,6 +581,12 @@ export const PelanggaranSiswaView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal Kartu Kendali Resmi Santri */}
+      <KartuKendaliModal
+        isOpen={showKartuKendaliModal}
+        onClose={() => setShowKartuKendaliModal(false)}
+      />
     </div>
   );
 };

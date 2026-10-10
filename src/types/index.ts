@@ -41,6 +41,7 @@ export interface Guru {
     persen: number;
   };
   tugasKhusus?: string;
+  mapelUtama?: string;
 }
 
 export interface Siswa {
@@ -73,6 +74,9 @@ export interface Siswa {
   pelanggaranCount?: number;
   prestasi?: string;
   avatarUrl?: string;
+  foto?: string;
+  tahunLulus?: string;
+  riwayatKelas?: { tahunAjaran: string; kelas: string; status: string; tanggal?: string }[];
 }
 
 export interface Kelas {
@@ -113,6 +117,7 @@ export interface RuangLokasi {
   nama: string;
   kategori?: any;
   tipe?: string;
+  jenis?: string;
   kondisi?: string;
   kapasitas: number;
   gedung: string;
@@ -147,6 +152,7 @@ export interface JadwalGuruPiket {
   anggota?: string[];
   jamMulai?: string;
   jamSelesai?: string;
+  fokusTugas?: string;
   status?: any;
   keterangan?: string;
 }
@@ -166,6 +172,7 @@ export interface GuruTidakMasukItem {
     tugas: string;
     fileName?: string;
     guruPengganti?: string;
+    catatan?: string;
     status: 'Belum Ada' | 'Ditetapkan' | 'Sedang Mengganti' | 'Dibatalkan';
   }[];
 }
@@ -214,7 +221,10 @@ export interface SiswaTerlambatData {
   jamKe: number;
   keterangan: string;
   dicatatOleh: string;
-  tindakan: 'Teguran' | 'Dicatat' | 'Pembinaan' | 'Panggil Orang Tua';
+  tindakan: 'Teguran' | 'Dicatat' | 'Pembinaan' | 'Panggil Orang Tua' | 'Belum Ditindak';
+  statusRekapKehadiran?: 'Hadir (Selesai Ditindak)' | 'Belum Ditindak' | 'Tidak Hadir';
+  statusKehadiranRekap?: string;
+  sudahDitindak?: boolean;
   tanggal: string;
 }
 
@@ -223,18 +233,57 @@ export interface IzinKeluarData {
   no: number;
   nama: string;
   kelas: string;
-  tujuan: 'Ke Puskesmas' | 'Urusan Keluarga' | 'Ke UKS' | 'Ke Bank' | 'Izin Pulang' | 'Lainnya';
+  tujuan: 'Ke Puskesmas' | 'Urusan Keluarga' | 'Ke UKS' | 'Ke Bank' | 'Izin Pulang' | 'Ke Kamar Mandi' | 'Lainnya';
   jenisIzin: string;
+  kategoriTempat?: 'Luar Lingkungan' | 'Kamar Mandi' | 'Lingkungan Sekolah';
   waktuKeluar: string;
   estimasiKembali: string;
   waktuKembali?: string;
   durasi?: string;
-  pendamping?: string;
+  pendamping?: string; // Pendamping (misal teman ke kamar mandi berdua atau pengantar)
   noHp?: string;
   keterangan?: string;
   status: 'Masih Keluar' | 'Kembali' | 'Lewat Batas Waktu';
   dicatatOleh: string;
   tanggal: string;
+}
+
+export interface CutOffPulangAwal {
+  id: string;
+  tipe: 'Massal' | 'Per Rombel';
+  kelasTerdampak: string[];
+  jamCutOff: string;
+  alasan: string;
+  keterangan?: string;
+  noDispensasi?: string;
+  tanggal: string;
+  dibuatOleh: string;
+  status: 'Aktif' | 'Selesai';
+}
+
+export interface LocalWisdomSession {
+  id: string;
+  hari: 'Senin' | 'Selasa' | 'Rabu' | 'Kamis' | 'Jumat' | 'Sabtu';
+  tingkatKelas: string; // 'Kelas 10' | 'Kelas 11' | 'Kelas 12'
+  jurusan: string; // 'IT / TIK' | 'Teknik Otomotif (TKRO)' | 'Tata Busana' | 'Tata Boga'
+  lokasi: string; // 'Lab TIK' | 'Bengkel TKRO' | 'Ruang Jahit BLK' | 'Dapur Tata Boga'
+  instruktur: string;
+  noWaInstruktur: string;
+  jumlahSiswa: number;
+  statusKonfirmasi: 'Menunggu Konfirmasi' | 'Hadir Lengkap' | 'Ada Siswa Absen' | 'Selesai';
+  waktuKonfirmasi?: string;
+  catatanInstruktur?: string;
+}
+
+export interface MasterKategoriItem {
+  id: string;
+  nama: string;
+  grup: 'Izin Keluar' | 'Program Tugas Khusus' | 'Tindakan Terlambat' | 'Program Madrasah' | 'Kendala' | 'Bobot Pelanggaran' | 'Kendala Sarpras';
+  jenis?: string;
+  jam?: string;
+  kuota?: number;
+  keterangan?: string;
+  bobotPoin?: number;
 }
 
 export interface SiswaTugasKhususData {
@@ -339,3 +388,23 @@ export interface PengumumanData {
   dibacaPersen: number;
   kirimWa: boolean;
 }
+
+export interface RiwayatPergantianTahun {
+  id: string;
+  tanggal: string;
+  waktu: string;
+  tahunLama: string;
+  semesterLama: string;
+  tahunBaru: string;
+  semesterBaru: string;
+  totalSiswaLulus: number;
+  totalSiswaNaikKelas: number;
+  totalSiswaTinggal: number;
+  totalSiswaMutasi: number;
+  totalSiswaSebelum: number;
+  totalSiswaSesudah: number;
+  diprosesOleh: string;
+  catatan?: string;
+  snapshotSiswaJson?: string;
+}
+

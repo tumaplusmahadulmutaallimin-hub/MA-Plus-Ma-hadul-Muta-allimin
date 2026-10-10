@@ -14,6 +14,7 @@ import {
   Shield,
   KeyRound
 } from 'lucide-react';
+import { MadrasahLogo } from '../common/MadrasahLogo';
 
 interface LoginViewProps {
   onOpenPublicReport: () => void;
@@ -62,26 +63,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onOpenPublicReport, onOpen
       <div className="flex justify-between items-center z-10 max-w-5xl mx-auto w-full text-slate-300 text-xs">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span className="font-bold tracking-wide text-white">MA PLUS Ma'hadul Muta'allimin</span>
+          <span className="font-bold tracking-wide text-white">MA PLUS Ma'hadul Muta'allimin Katerban-Ngawi</span>
         </div>
         <span className="font-mono text-emerald-300/80 hidden sm:inline">
-          Jum'at, 4 September 2026 M / 21 Rabi'ul Awwal 1448 H
+          Tahun Ajaran 2026/2027 • Semester Gasal
         </span>
       </div>
 
       {/* Main Container */}
       <div className="z-10 w-full max-w-md mx-auto my-auto py-6">
         <div className="text-center mb-6">
-          <div className="w-16 h-16 rounded-2xl bg-white/95 p-2 mx-auto shadow-2xl shadow-emerald-950/60 border border-amber-300/40 flex items-center justify-center mb-3">
-            <img
-              src="/src/assets/images/madrasah_logo_1791093665342.jpg"
-              alt="MA PLUS Logo"
-              className="w-full h-full object-contain"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
-              }}
-            />
-            <Building2 className="w-8 h-8 text-emerald-800 hidden only:block" />
+          <div className="w-20 h-20 rounded-2xl bg-white p-1.5 mx-auto shadow-2xl shadow-emerald-950/60 border border-emerald-400/40 flex items-center justify-center mb-3">
+            <MadrasahLogo size="2xl" />
           </div>
 
           <span className="font-arabic text-sm text-amber-200/90 block mb-1">
@@ -89,12 +82,20 @@ export const LoginView: React.FC<LoginViewProps> = ({ onOpenPublicReport, onOpen
           </span>
 
           <h1 className="text-2xl font-black text-white tracking-wide uppercase">
-            SISTEM GURU PIKET
+            SISTEM GURU PIKET & SIM
           </h1>
           <p className="text-sm font-semibold text-emerald-200/90 mt-0.5">
-            MA PLUS Ma'hadul Muta'allimin
+            MA PLUS Ma'hadul Muta'allimin Katerban-Ngawi
           </p>
-          <p className="text-xs font-serif italic text-amber-300/80 mt-1.5 px-4">
+          <div className="mt-2 space-y-0.5">
+            <p className="text-[11px] font-extrabold text-amber-300 uppercase tracking-wider">
+              MADRASAH THREE IN ONE (RELIGIUS, SAINS AND SKILL)
+            </p>
+            <p className="text-[10px] font-bold text-emerald-300 uppercase tracking-tight">
+              MADRASAH BERBASIS PONDOK PESANTREN
+            </p>
+          </div>
+          <p className="text-xs font-serif italic text-amber-200/80 mt-1.5 px-4">
             "Ikhlas Beramal, Cerdas dalam Tugas, Tertib untuk Madrasah"
           </p>
         </div>

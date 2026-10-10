@@ -287,3 +287,58 @@ export function downloadSiswaTemplateXLSX(): void {
   });
 }
 
+/**
+ * Downloads a ready-to-fill standard .xlsx template for Jadwal Guru Piket
+ */
+export function downloadJadwalPiketTemplateXLSX(): void {
+  const headers = [
+    'No',
+    'Hari (Senin-Sabtu)',
+    'Koordinator Piket',
+    'Anggota Tim (Pisahkan koma)',
+    'Jam Mulai (HH:MM)',
+    'Jam Selesai (HH:MM)',
+    'Fokus Tugas Harian'
+  ];
+
+  const sampleRows = [
+    ['1', 'Senin', 'Zainal Arifin, S.Pd', 'Ahmad Setiawan, S.Pd, Siti Fatimah, S.Pd', '06:45', '14:30', 'Penyambutan santri, Presensi KBM, Izin Keluar & MBG'],
+    ['2', 'Selasa', 'Ahmad Setiawan, S.Pd', 'Muhammad Ridwan, M.Pd, Nurul Hidayah, S.Pd', '06:45', '14:30', 'Ketertiban apel pagi, Monitoring KBM jam 1-8'],
+    ['3', 'Rabu', 'Siti Fatimah, S.Pd', 'Drs. H. M. Fauzan, M.Pd.I, Hendra Gunawan, S.Kom', '06:45', '14:30', 'Pemeriksaan atribut santri, Izin keluar kelas'],
+    ['4', 'Kamis', 'Muhammad Ridwan, M.Pd', 'Zainal Arifin, S.Pd, Aisyah Rahmawati, S.Pd', '06:45', '14:30', 'Penyambutan santri, Dispensasi tugas khusus'],
+    ['5', 'Jumat', 'Zainal Arifin, S.Pd', 'Ahmad Setiawan, S.Pd, Siti Fatimah, S.Pd', '06:45', '11:45', 'Penyambutan santri, Sholat Jum\'at berjamaah'],
+    ['6', 'Sabtu', 'Nurul Hidayah, S.Pd', 'Hendra Gunawan, S.Kom, Muhammad Ridwan, M.Pd', '06:45', '13:00', 'Kegiatan ekstrakurikuler & penertiban lingkungan']
+  ];
+
+  exportToXLSX({
+    filename: 'Template_Import_Jadwal_Piket_MAPLUS.xlsx',
+    sheetName: 'Template Piket',
+    headers,
+    data: sampleRows,
+    colWidths: [6, 18, 28, 45, 18, 18, 45]
+  });
+}
+
+/**
+ * Downloads a ready-to-fill standard .csv template for Jadwal Guru Piket
+ */
+export function downloadJadwalPiketTemplateCSV(): void {
+  const csvContent =
+    'No,Hari,Koordinator Piket,Anggota Tim (Pisahkan koma),Jam Mulai,Jam Selesai,Fokus Tugas Harian\n' +
+    '1,Senin,"Zainal Arifin, S.Pd","Ahmad Setiawan, S.Pd; Siti Fatimah, S.Pd",06:45,14:30,"Penyambutan santri, Presensi KBM, Izin Keluar & MBG"\n' +
+    '2,Selasa,"Ahmad Setiawan, S.Pd","Muhammad Ridwan, M.Pd; Nurul Hidayah, S.Pd",06:45,14:30,"Ketertiban apel pagi, Monitoring KBM jam 1-8"\n' +
+    '3,Rabu,"Siti Fatimah, S.Pd","Hendra Gunawan, S.Kom; Aisyah Rahmawati, S.Pd",06:45,14:30,"Pemeriksaan atribut santri, Izin keluar kelas"\n' +
+    '4,Kamis,"Muhammad Ridwan, M.Pd","Zainal Arifin, S.Pd; Aisyah Rahmawati, S.Pd",06:45,14:30,"Penyambutan santri, Dispensasi tugas khusus"\n' +
+    '5,Jumat,"Zainal Arifin, S.Pd","Ahmad Setiawan, S.Pd; Siti Fatimah, S.Pd",06:45,11:45,"Penyambutan santri, Sholat Jum\'at berjamaah"\n' +
+    '6,Sabtu,"Nurul Hidayah, S.Pd","Hendra Gunawan, S.Kom; Muhammad Ridwan, M.Pd",06:45,13:00,"Kegiatan ekstrakurikuler & penertiban lingkungan"';
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.setAttribute('download', 'Template_Import_Jadwal_Piket_MAPLUS.csv');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+

@@ -15,10 +15,12 @@ import {
 import { exportToXLSX } from '../../utils/excelHelper';
 
 export const SiswaTerlambatView: React.FC = () => {
-  const { siswaTerlambatList, alertSuccess } = useApp();
+  const { siswaTerlambatList, tindakSiswaTerlambat, alertSuccess } = useApp();
   const [filterKelas, setFilterKelas] = useState('Semua');
   const [filterJam, setFilterJam] = useState('Semua');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTindakSiswa, setSelectedTindakSiswa] = useState<any | null>(null);
+  const [tindakanPilihan, setTindakanPilihan] = useState<'Teguran' | 'Dicatat' | 'Pembinaan' | 'Panggil Orang Tua'>('Teguran');
 
   const filteredData = siswaTerlambatList.filter((item) => {
     const matchKelas = filterKelas === 'Semua' || item.kelas === filterKelas;
@@ -189,9 +191,22 @@ export const SiswaTerlambatView: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column (8 cols): Table */}
         <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+          {/* Policy Banner: Rekapitulasi Presensi Siswa Terlambat */}
+          <div className="p-4 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-b border-emerald-200 flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+            <div className="text-xs">
+              <span className="font-black uppercase text-[10px] bg-emerald-200 text-emerald-950 px-2 py-0.5 rounded-full inline-block mb-1">
+                Aturan Rekapitulasi Presensi Madrasah
+              </span>
+              <p className="text-emerald-900 leading-relaxed">
+                Santri terlambat yang <strong>sudah ditindak</strong> oleh Guru Piket (Teguran / Dicatat / Pembinaan) secara resmi <strong>DIAKUI HADIR</strong> dalam rekapitulasi kehadiran madrasah. Berbeda dengan santri yang ditetapkan pada input absensi jam ke-1 yang berstatus <em>Tidak Hadir Permanen</em>.
+              </p>
+            </div>
+          </div>
+
           <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-              Daftar Siswa Terlambat
+              Daftar Siswa Terlambat & Rekap Kehadiran
             </h3>
             <span className="text-xs text-slate-400 font-mono">
               Total Data: {filteredData.length}
@@ -205,42 +220,75 @@ export const SiswaTerlambatView: React.FC = () => {
                   <th className="py-3 px-3">No</th>
                   <th className="py-3 px-3">Nama Siswa</th>
                   <th className="py-3 px-3">Kelas</th>
-                  <th className="py-3 px-3">Waktu Terlambat</th>
+                  <th className="py-3 px-3">Waktu</th>
                   <th className="py-3 px-3">Jam Ke</th>
-                  <th className="py-3 px-3">Keterangan</th>
-                  <th className="py-3 px-3">Dicatat Oleh</th>
-                  <th className="py-3 px-3">Tindakan</th>
+                  <th className="py-3 px-3">Tindakan Piket</th>
+                  <th className="py-3 px-3">Status Rekap</th>
+                  <th className="py-3 px-3 text-center">Aksi Piket</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredData.map((item, idx) => (
-                  <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3 px-3 font-mono text-slate-400">{idx + 1}</td>
-                    <td className="py-3 px-3 font-bold text-slate-900">{item.nama}</td>
-                    <td className="py-3 px-3 font-semibold text-blue-600">{item.kelas}</td>
-                    <td className="py-3 px-3 font-mono font-bold text-slate-800">
-                      {item.waktuTerlambat}
-                    </td>
-                    <td className="py-3 px-3 font-mono font-bold text-slate-700">
-                      {item.jamKe}
-                    </td>
-                    <td className="py-3 px-3 text-slate-600">{item.keterangan}</td>
-                    <td className="py-3 px-3 text-slate-700">{item.dicatatOleh}</td>
-                    <td className="py-3 px-3">
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          item.tindakan === 'Teguran'
-                            ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                            : item.tindakan === 'Dicatat'
-                            ? 'bg-blue-50 text-blue-800 border border-blue-200'
-                            : 'bg-rose-50 text-rose-800 border border-rose-200'
-                        }`}
-                      >
-                        {item.tindakan}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {filteredData.map((item, idx) => {
+                  const isDone = item.sudahDitindak || item.statusKehadiranRekap === 'Dianggap Hadir' || (item.tindakan && item.tindakan !== 'Belum Ditindak');
+                  return (
+                    <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3 px-3 font-mono text-slate-400">{idx + 1}</td>
+                      <td className="py-3 px-3">
+                        <div className="font-bold text-slate-900">{item.nama}</div>
+                        <div className="text-[10px] text-slate-500 truncate max-w-[160px]">{item.keterangan || '-'}</div>
+                      </td>
+                      <td className="py-3 px-3 font-semibold text-blue-600">{item.kelas}</td>
+                      <td className="py-3 px-3 font-mono font-bold text-slate-800">
+                        {item.waktuTerlambat || '07:15'}
+                      </td>
+                      <td className="py-3 px-3 font-mono font-bold text-slate-700">
+                        Ke-{item.jamKe}
+                      </td>
+                      <td className="py-3 px-3">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            item.tindakan === 'Teguran'
+                              ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                              : item.tindakan === 'Dicatat'
+                              ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                              : item.tindakan === 'Pembinaan'
+                              ? 'bg-purple-100 text-purple-800 border border-purple-300'
+                              : item.tindakan === 'Panggil Orang Tua'
+                              ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                              : 'bg-slate-100 text-slate-600 border border-slate-300'
+                          }`}
+                        >
+                          {item.tindakan || 'Teguran'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3">
+                        {isDone ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span>Dianggap HADIR</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
+                            <Clock className="w-3 h-3 text-amber-600" />
+                            <span>Belum Ditindak</span>
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedTindakSiswa(item);
+                            setTindakanPilihan((item.tindakan as any) || 'Teguran');
+                          }}
+                          className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-[10px] font-bold transition-all shadow-2xs cursor-pointer"
+                        >
+                          {isDone ? 'Ubah Tindakan' : 'Beri Tindakan'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -329,17 +377,114 @@ export const SiswaTerlambatView: React.FC = () => {
           <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-2">
             <p className="font-bold text-slate-800 flex items-center gap-1.5">
               <Info className="w-4 h-4 text-blue-600" />
-              <span>Informasi:</span>
+              <span>Ketentuan Rekapitulasi Presensi:</span>
             </p>
             <ol className="text-[11px] text-slate-600 space-y-1 list-decimal list-inside leading-relaxed">
-              <li>Data siswa terlambat diambil otomatis dari menu Pelanggaran Siswa.</li>
-              <li>Tidak perlu melakukan input ulang pada menu ini.</li>
-              <li>Gunakan filter untuk melihat rekap sesuai kebutuhan.</li>
-              <li>Klik nama siswa pada tabel untuk melihat detail pelanggaran.</li>
+              <li>Santri terlambat yang telah ditindak otomatis DIAKUI HADIR dalam rekapitulasi madrasah.</li>
+              <li>Santri yang tidak hadir jam 1 (monitoring KBM) berstatus Tidak Hadir Permanen.</li>
+              <li>Tindakan piket meliputi teguran lisan, pencatatan buku sanksi, atau pembinaan langsung.</li>
             </ol>
           </div>
         </div>
       </div>
+
+      {/* MODAL BERI TINDAKAN SANTRI TERLAMBAT */}
+      {selectedTindakSiswa && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-700" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">
+                    Beri Tindakan & Akui Hadir
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    {selectedTindakSiswa.nama} • {selectedTindakSiswa.kelas} (Jam Ke-{selectedTindakSiswa.jamKe})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedTindakSiswa(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 leading-relaxed">
+              ✅ <strong>Konfirmasi Kebijakan:</strong> Memberikan tindakan kepada santri terlambat ini akan otomatis mencatatnya sebagai <strong>DIANGGAP HADIR</strong> dalam rekapitulasi absensi sekolah.
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                tindakSiswaTerlambat(selectedTindakSiswa.id, tindakanPilihan);
+                alertSuccess(
+                  'Tindakan Berhasil Ditetapkan',
+                  `Santri ${selectedTindakSiswa.nama} berhasil diberi tindakan "${tindakanPilihan}" dan kini resmi DIAKUI HADIR dalam rekapitulasi.`
+                );
+                setSelectedTindakSiswa(null);
+              }}
+              className="space-y-4 text-xs"
+            >
+              <div>
+                <label className="block font-bold text-slate-700 mb-1.5">
+                  Pilih Tindakan Guru Piket <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'Teguran', label: 'Teguran Lisan', desc: 'Peringatan & nasihat di tempat' },
+                    { id: 'Dicatat', label: 'Dicatat Buku Piket', desc: 'Pencatatan poin kedisiplinan' },
+                    { id: 'Pembinaan', label: 'Pembinaan Piket', desc: 'Tugas khusus kebersihan/hafalan' },
+                    { id: 'Panggil Orang Tua', label: 'Panggil Ortu / BK', desc: 'Keterlambatan berulang' }
+                  ].map((t) => (
+                    <label
+                      key={t.id}
+                      className={`p-3 rounded-xl border flex flex-col justify-between cursor-pointer transition-all ${
+                        tindakanPilihan === t.id
+                          ? 'border-emerald-600 bg-emerald-50 text-emerald-950 font-bold shadow-xs'
+                          : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold">{t.label}</span>
+                        <input
+                          type="radio"
+                          name="tindakanOption"
+                          checked={tindakanPilihan === t.id}
+                          onChange={() => setTindakanPilihan(t.id as any)}
+                          className="text-emerald-600"
+                        />
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-normal mt-1">{t.desc}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTindakSiswa(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs rounded-xl shadow-md shadow-emerald-700/20 cursor-pointer"
+                >
+                  Tindak & Akui Hadir
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 export const DataKelasView: React.FC = () => {
-  const { kelasList, guruList, updateKelas } = useApp();
+  const { kelasList, guruList, siswaList, updateKelas } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [tingkatFilter, setTingkatFilter] = useState<'Semua' | '10' | '11' | '12'>('Semua');
@@ -31,7 +31,7 @@ export const DataKelasView: React.FC = () => {
     ketuaKelas: '',
     ruang: '',
     kapasitas: 32,
-    jumlahSiswa: 30
+    jumlahSiswa: 0
   });
 
   const filteredKelas = kelasList.filter((k: any) => {
@@ -57,7 +57,7 @@ export const DataKelasView: React.FC = () => {
     setShowAddModal(false);
   };
 
-  const totalSiswaRombel = kelasList.reduce((acc, curr) => acc + curr.jumlahSiswa, 0);
+  const totalSiswaRombel = siswaList.length;
 
   return (
     <div className="space-y-6">
@@ -141,7 +141,7 @@ export const DataKelasView: React.FC = () => {
               ketuaKelas: '',
               ruangan: 'Gedung A',
               kapasitas: 32,
-              jumlahSiswa: 30
+              jumlahSiswa: 0
             });
             setShowAddModal(true);
           }}
@@ -186,7 +186,9 @@ export const DataKelasView: React.FC = () => {
                   <td className="py-3.5 px-4 text-slate-600">{k.ketuaKelas || '-'}</td>
                   <td className="py-3.5 px-4 text-slate-600">{k.ruang || k.ruangan || 'Gedung A'}</td>
                   <td className="py-3.5 px-4 text-center">
-                    <span className="font-semibold text-slate-800">{k.jumlahSiswa}</span>
+                    <span className="font-semibold text-slate-800">
+                      {siswaList.filter((s: any) => s.kelas === k.nama).length}
+                    </span>
                     <span className="text-slate-400 text-xs"> / {k.kapasitas}</span>
                   </td>
                   <td className="py-3.5 px-4 text-center">

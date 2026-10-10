@@ -20,10 +20,31 @@ import {
 } from 'lucide-react';
 
 export const DashboardKepala: React.FC = () => {
-  const { currentUser, setActiveView, laporanPiketList, kendalaList, guruTidakMasukList, confirmAction, alertSuccess } = useApp();
+  const {
+    currentUser,
+    setActiveView,
+    laporanPiketList,
+    kendalaList,
+    guruTidakMasukList,
+    gurus,
+    siswas,
+    siswaTidakMasukList,
+    confirmAction,
+    alertSuccess
+  } = useApp();
 
   const pendingLaporan = laporanPiketList.find((l: any) => l.status === 'Menunggu') || laporanPiketList[0];
   const urgentKendala = kendalaList.filter((k: any) => k.status !== 'Sudah Ditindaklanjuti');
+
+  const totalGuru = gurus.length;
+  const guruIzin = guruTidakMasukList.length;
+  const guruHadir = Math.max(0, totalGuru - guruIzin);
+  const persenGuru = totalGuru > 0 ? ((guruHadir / totalGuru) * 100).toFixed(1) : '100.0';
+
+  const totalSiswa = siswas.length;
+  const siswaAbsen = siswaTidakMasukList.length;
+  const siswaHadir = Math.max(0, totalSiswa - siswaAbsen);
+  const persenSiswa = totalSiswa > 0 ? ((siswaHadir / totalSiswa) * 100).toFixed(1) : '100.0';
 
   return (
     <div className="space-y-6">
@@ -38,7 +59,7 @@ export const DashboardKepala: React.FC = () => {
               PORTAL EKSEKUTIF KEPALA MADRASAH
             </div>
             <h1 className="text-2xl font-black tracking-tight">
-              Assalamu'alaikum, {currentUser?.namaLengkap || 'Drs. H. Syahrul Munir, M.Pd.I'}
+              Assalamu'alaikum, {currentUser?.namaLengkap || 'Drs. H. M. Fauzan, M.Pd.I'}
             </h1>
             <p className="text-emerald-100/90 text-xs max-w-2xl leading-relaxed">
               Selamat datang di dashboard monitoring strategis MA PLUS Ma'hadul Muta'allimin. Pantau keterlaksanaan
@@ -70,34 +91,34 @@ export const DashboardKepala: React.FC = () => {
             </div>
           </div>
           <div className="my-3">
-            <div className="text-3xl font-bold text-slate-800">95.2%</div>
+            <div className="text-3xl font-bold text-slate-800">{persenGuru}%</div>
             <div className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
-              <span className="font-semibold text-emerald-600">40 Hadir</span> •
-              <span className="text-rose-600 font-semibold">2 Izin/Cuti</span>
+              <span className="font-semibold text-emerald-600">{guruHadir} Hadir</span> •
+              <span className="text-rose-600 font-semibold">{guruIzin} Izin/Cuti</span>
             </div>
           </div>
           <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-            <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: '95.2%' }}></div>
+            <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${persenGuru}%` }}></div>
           </div>
         </div>
 
         {/* Siswa Attendance */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Tingkat Kehadiran Siswa</span>
+            <span className="text-xs font-semibold text-slate-500">Tingkat Kehadiran Santri</span>
             <div className="p-2 bg-blue-50 text-blue-700 rounded-lg">
               <GraduationCap className="w-4 h-4" />
             </div>
           </div>
           <div className="my-3">
-            <div className="text-3xl font-bold text-slate-800">96.7%</div>
+            <div className="text-3xl font-bold text-slate-800">{persenSiswa}%</div>
             <div className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
-              <span className="font-semibold text-blue-600">356 Hadir</span> •
-              <span className="text-amber-600 font-semibold">12 Absen</span>
+              <span className="font-semibold text-blue-600">{siswaHadir} Hadir</span> •
+              <span className="text-amber-600 font-semibold">{siswaAbsen} Absen</span>
             </div>
           </div>
           <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-            <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: '96.7%' }}></div>
+            <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: `${persenSiswa}%` }}></div>
           </div>
         </div>
 
